@@ -930,6 +930,9 @@ new_afile (const char *name,
       p->local_sym_name = name;
       p->just_syms_flag = TRUE;
       p->search_dirs_flag = FALSE;
+/* cocotron.org begin */
+      p->search_frameworks_flag= FALSE;
+/* cocotron.org end */
       break;
     case lang_input_file_is_fake_enum:
       p->filename = name;
@@ -938,6 +941,9 @@ new_afile (const char *name,
       p->local_sym_name = name;
       p->just_syms_flag = FALSE;
       p->search_dirs_flag = FALSE;
+/* cocotron.org begin */
+      p->search_frameworks_flag= FALSE;
+/* cocotron.org end */
       break;
     case lang_input_file_is_l_enum:
       p->is_archive = TRUE;
@@ -946,6 +952,9 @@ new_afile (const char *name,
       p->local_sym_name = concat ("-l", name, NULL);
       p->just_syms_flag = FALSE;
       p->search_dirs_flag = TRUE;
+/* cocotron.org begin */
+      p->search_frameworks_flag= FALSE;
+/* cocotron.org end */
       break;
     case lang_input_file_is_marker_enum:
       p->filename = name;
@@ -954,6 +963,9 @@ new_afile (const char *name,
       p->local_sym_name = name;
       p->just_syms_flag = FALSE;
       p->search_dirs_flag = TRUE;
+/* cocotron.org begin */
+      p->search_frameworks_flag= FALSE;
+/* cocotron.org end */
       break;
     case lang_input_file_is_search_file_enum:
       p->sysrooted = ldlang_sysrooted_script;
@@ -963,6 +975,9 @@ new_afile (const char *name,
       p->local_sym_name = name;
       p->just_syms_flag = FALSE;
       p->search_dirs_flag = TRUE;
+/* cocotron.org begin */
+      p->search_frameworks_flag= FALSE;
+/* cocotron.org end */
       break;
     case lang_input_file_is_file_enum:
       p->filename = name;
@@ -971,7 +986,21 @@ new_afile (const char *name,
       p->local_sym_name = name;
       p->just_syms_flag = FALSE;
       p->search_dirs_flag = FALSE;
+/* cocotron.org begin */
+      p->search_frameworks_flag= FALSE;
+/* cocotron.org end */
       break;
+/* cocotron.org begin */
+    case lang_input_file_is_framework_enum:
+      p->is_archive = TRUE;
+      p->filename = name;
+      p->real = TRUE;
+      p->local_sym_name = concat ("-l", name, NULL);
+      p->just_syms_flag = FALSE;
+      p->search_dirs_flag = TRUE;
+      p->search_frameworks_flag= TRUE;
+      break;
+/* cocotron.org end */
     default:
       FAIL ();
     }
@@ -998,6 +1027,27 @@ lang_add_input_file (const char *name,
 {
   return new_afile (name, file_type, target, TRUE);
 }
+
+/* cocotron.org begin */
+extern void lang_add_input_filelist(const char *name) {
+ FILE *file=fopen(name,"r");
+ char *result,buffer[2048];
+ 
+ if(file==NULL)
+  fprintf(stderr,"Unable to open %s\n",name);
+  
+ while((result=fgets(buffer,2048,file))!=NULL){
+  int len=strlen(buffer);
+  
+  for(;len>0 && buffer[len]<' ';len--)
+   buffer[len]='\0';
+
+  lang_add_input_file(xstrdup (buffer),lang_input_file_is_file_enum,NULL);
+ }
+  
+ fclose(file);
+}
+/* cocotron.org end */
 
 struct out_section_hash_entry
 {

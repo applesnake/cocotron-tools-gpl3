@@ -43,11 +43,18 @@ typedef struct search_dirs {
 } search_dirs_type;
 
 extern search_dirs_type *search_head;
+/* cocotron.org begin */
+extern search_dirs_type *framework_search_head;
+/* cocotron.org end */
 
 extern void ldfile_add_arch
   (const char *);
 extern void ldfile_add_library_path
   (const char *, bfd_boolean cmdline);
+/* cocotron.org begin */
+extern void ldfile_add_framework_path
+  (const char *);
+/* cocotron.org end */
 extern void ldfile_open_command_file
   (const char *name);
 extern void ldfile_open_file
