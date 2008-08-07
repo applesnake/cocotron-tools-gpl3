@@ -3964,7 +3964,6 @@ objc_build_synchronized (location_t start_locus, tree mutex, tree body)
 
 /* Define to a harmless positive value so the below code doesn't die.  */
 #ifndef OBJC_JBLEN
-#warn OBJC_JBLEN not defined for this platform. Defining to 40.
 #define OBJC_JBLEN 40
 #endif
 
@@ -3992,6 +3991,8 @@ build_next_objc_exception_stuff (void)
 
   finish_struct (objc_exception_data_template, field_decl_chain, NULL_TREE);
 
+  builtin_define_with_value("__SJLJ_BUFFER_LENGTH__", "", OBJC_JBLEN);
+   
   /* int _setjmp(...); */
   /* If the user includes <setjmp.h>, this shall be superseded by
      'int _setjmp(jmp_buf);' */
