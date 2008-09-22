@@ -1,3 +1,6 @@
+/* Original in GNU gdb 6.8.50.20080917-cvs,
+   modified on 2008-09-17 for xcxdb by Dr. Rolf Jansen. */
+
 /* Remote utility routines for the remote server for GDB.
    Copyright (C) 1986, 1989, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
    2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008

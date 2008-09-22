@@ -1,3 +1,6 @@
+/* Original in GNU gdb 6.8.50.20080917-cvs,
+   modified on 2008-09-17 for xcxdb by Dr. Rolf Jansen. */
+
 /* Low level interface to Windows debugging, for gdbserver.
    Copyright (C) 2006, 2007, 2008 Free Software Foundation, Inc.
 
