@@ -236,14 +236,13 @@ value_nsstring (char *ptr, int len)
     }
   else if (lookup_minimal_symbol("+[NSString stringWithCString:]", 0, 0))
     {
-      function
-	= find_function_in_inferior("+[NSString stringWithCString:]", &objf);
+      function = find_function_in_inferior("+[NSString stringWithCString:]", &objf);
       type = builtin_type (get_objfile_arch (objf))->builtin_long;
 
       stringValue[0] = value_from_longest 
-	(type, lookup_objc_class ("NSString"));
+        (type, lookup_objc_class ("NSString"));
       stringValue[1] = value_from_longest 
-	(type, lookup_child_selector ("stringWithCString:"));
+        (type, lookup_child_selector ("stringWithCString:"));
       nsstringValue = call_function_by_hand(function, 3, &stringValue[0]);
     }
   else
@@ -554,6 +553,7 @@ const struct language_defn objc_language_defn = {
   type_check_off,
   case_sensitive_on,
   array_row_major,
+  macro_expansion_c,
   &exp_descriptor_standard,
   objc_parse,
   objc_error,
@@ -562,6 +562,7 @@ const struct language_defn objc_language_defn = {
   objc_printstr,                /* Function to print string constant */
   objc_emit_char,
   c_print_type,                 /* Print a type using appropriate syntax */
+  c_print_typedef,              /* Print a typedef using appropriate syntax */
   c_val_print,                  /* Print a value using appropriate syntax */
   c_value_print,                /* Print a top-level value */
   objc_skip_trampoline,         /* Language specific skip_trampoline */
@@ -1202,7 +1203,8 @@ find_methods (struct symtab *symtab, char type,
     {
       QUIT;
 
-      if ((msymbol->type != mst_text) && (msymbol->type != mst_file_text))
+      if ((MSYMBOL_TYPE (msymbol) != mst_text)
+          && (MSYMBOL_TYPE (msymbol) != mst_file_text))
         /* Not a function or method.  */
         continue;
 
