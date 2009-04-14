@@ -535,8 +535,8 @@ objc_init (void)
     }
   else
     {
-      TAG_GETCLASS = "objc_get_class";
-      TAG_GETMETACLASS = "objc_get_meta_class";
+      TAG_GETCLASS = "objc_getClass";
+      TAG_GETMETACLASS = "objc_getMetaClass";
       TAG_MSGSEND = "objc_msg_lookup";
       TAG_MSGSENDSUPER = "objc_msg_lookup_super";
       /* GNU runtime does not provide special functions to support
