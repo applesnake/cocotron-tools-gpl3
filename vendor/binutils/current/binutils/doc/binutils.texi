@@ -1,43 +1,20 @@
 \input texinfo       @c                    -*- Texinfo -*-
 @setfilename binutils.info
-@c Copyright 2001, 2002, 2003, 2004, 2005, 2006, 2007
-@c Free Software Foundation, Inc.
+@settitle @sc{gnu} Binary Utilities
+@finalout
+@synindex ky cp
 
 @c man begin INCLUDE
 @include bfdver.texi
 @c man end
 
-@ifinfo
-@format
-START-INFO-DIR-ENTRY
-* Binutils: (binutils).         The GNU binary utilities.
-* ar: (binutils)ar.               Create, modify, and extract from archives
-* nm: (binutils)nm.               List symbols from object files
-* objcopy: (binutils)objcopy.	  Copy and translate object files
-* objdump: (binutils)objdump.     Display information from object files
-* ranlib: (binutils)ranlib.       Generate index to archive contents
-* readelf: (binutils)readelf.	  Display the contents of ELF format files.
-* size: (binutils)size.           List section sizes and total size
-* strings: (binutils)strings.     List printable strings from files
-* strip: (binutils)strip.         Discard symbols
-* c++filt: (binutils)c++filt.	  Filter to demangle encoded C++ symbols
-* cxxfilt: (binutils)c++filt.     MS-DOS name for c++filt
-* addr2line: (binutils)addr2line. Convert addresses to file and line
-* nlmconv: (binutils)nlmconv.     Converts object code into an NLM
-* windres: (binutils)windres.	  Manipulate Windows resources
-* windmc: (binutils)windmc.	  Generator for Windows message resources
-* dlltool: (binutils)dlltool.	  Create files needed to build and use DLLs
-END-INFO-DIR-ENTRY
-@end format
-@end ifinfo
-
 @copying
 @c man begin COPYRIGHT
 Copyright @copyright{} 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
-under the terms of the GNU Free Documentation License, Version 1.1
+under the terms of the GNU Free Documentation License, Version 1.2
 or any later version published by the Free Software Foundation;
 with no Invariant Sections, with no Front-Cover Texts, and with no
 Back-Cover Texts.  A copy of the license is included in the
@@ -46,22 +23,32 @@ section entitled ``GNU Free Documentation License''.
 @c man end
 @end copying
 
-@synindex ky cp
-@c
-@c This file documents the GNU binary utilities "ar", "ld", "objcopy",
-@c  "objdump", "nm", "size", "strings", "strip", "readelf" and "ranlib".
-@c
-@c Copyright (C) 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-@c 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
-@c
-@c This text may be freely distributed under the terms of the GNU
-@c Free Documentation License.
-@c
+@dircategory Software development
+@direntry
+* Binutils: (binutils).         The GNU binary utilities.
+@end direntry
 
-@setchapternewpage odd
-@settitle @sc{gnu} Binary Utilities
+@dircategory Individual utilities
+@direntry
+* addr2line: (binutils)addr2line. Convert addresses to file and line.
+* ar: (binutils)ar.               Create, modify, and extract from archives.
+* c++filt: (binutils)c++filt.	  Filter to demangle encoded C++ symbols.
+* cxxfilt: (binutils)c++filt.     MS-DOS name for c++filt.
+* dlltool: (binutils)dlltool.	  Create files needed to build and use DLLs.
+* nlmconv: (binutils)nlmconv.     Converts object code into an NLM.
+* nm: (binutils)nm.               List symbols from object files.
+* objcopy: (binutils)objcopy.	  Copy and translate object files.
+* objdump: (binutils)objdump.     Display information from object files.
+* ranlib: (binutils)ranlib.       Generate index to archive contents.
+* readelf: (binutils)readelf.	  Display the contents of ELF format files.
+* size: (binutils)size.           List section sizes and total size.
+* strings: (binutils)strings.     List printable strings from files.
+* strip: (binutils)strip.         Discard symbols.
+* windmc: (binutils)windmc.	  Generator for Windows message resources.
+* windres: (binutils)windres.	  Manipulate Windows resources.
+@end direntry
+
 @titlepage
-@finalout
 @title The @sc{gnu} Binary Utilities
 @ifset VERSION_PACKAGE
 @subtitle @value{VERSION_PACKAGE}
@@ -76,20 +63,11 @@ section entitled ``GNU Free Documentation License''.
 
 @tex
 {\parskip=0pt \hfill Cygnus Support\par \hfill
-\TeX{}info \texinfoversion\par }
+Texinfo \texinfoversion\par }
 @end tex
 
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
-
-      Permission is granted to copy, distribute and/or modify this document
-      under the terms of the GNU Free Documentation License, Version 1.1
-      or any later version published by the Free Software Foundation;
-      with no Invariant Sections, with no Front-Cover Texts, and with no
-      Back-Cover Texts.  A copy of the license is included in the
-      section entitled ``GNU Free Documentation License''.
-
+@insertcopying
 @end titlepage
 @contents
 
@@ -156,7 +134,7 @@ Create the files needed to build and use Dynamic Link Libraries
 
 This document is distributed under the terms of the GNU Free
 Documentation License.  A copy of the license is included in the
-section entitled "GNU Free Documentation License".
+section entitled ``GNU Free Documentation License''.
 
 @menu
 * ar::                          Create, modify, and extract from archives
@@ -164,7 +142,7 @@ section entitled "GNU Free Documentation License".
 * objcopy::			Copy and translate object files
 * objdump::                     Display information from object files
 * ranlib::                      Generate index to archive contents
-* readelf::			Display the contents of ELF format files.
+* readelf::                     Display the contents of ELF format files
 * size::                        List section sizes and total size
 * strings::                     List printable strings from files
 * strip::                       Discard symbols
@@ -176,10 +154,10 @@ section entitled "GNU Free Documentation License".
 * windmc::			Generator for Windows message resources
 * dlltool::			Create files needed to build and use DLLs
 * Common Options::              Command-line options for all utilities
-* Selecting The Target System:: How these utilities determine the target.
+* Selecting the Target System:: How these utilities determine the target
 * Reporting Bugs::              Reporting Bugs
 * GNU Free Documentation License::  GNU Free Documentation License
-* Binutils Index::                       Binutils Index
+* Binutils Index::              Binutils Index
 @end menu
 
 @node ar
@@ -232,6 +210,18 @@ their placement in the archive.
 You may use @samp{nm -s} or @samp{nm --print-armap} to list this index
 table.  If an archive lacks the table, another form of @command{ar} called
 @command{ranlib} can be used to add just the table.
+
+@cindex thin archives
+@sc{gnu} @command{ar} can optionally create a @emph{thin} archive,
+which contains a symbol index and references to the original copies
+of the member files of the archives.  Such an archive is useful
+for building libraries for use within a local build, where the
+relocatable objects are expected to remain available, and copying the
+contents of each object would only waste time and space.  Thin archives
+are also @emph{flattened}, so that adding one or more archives to a
+thin archive will add the elements of the nested archive individually.
+The paths to the elements of the archive are stored relative to the
+archive itself.
 
 @cindex compatibility, @command{ar}
 @cindex @command{ar} compatibility
@@ -378,6 +368,8 @@ use the @samp{v} modifier with this operation, to request that
 If you do not specify a @var{member}, all files in the archive
 are extracted.
 
+Files cannot be extracted from a thin archive.
+
 @end table
 
 A number of modifiers (@var{mod}) may immediately follow the @var{p}
@@ -455,6 +447,12 @@ large library in several steps.  The resulting archive can not be used
 with the linker.  In order to build a symbol table, you must omit the
 @samp{S} modifier on the last execution of @samp{ar}, or you must run
 @samp{ranlib} on the archive.
+
+@item T
+@cindex creating thin archive
+Make the specified @var{archive} a @emph{thin} archive.  If it already
+exists and is a regular archive, the existing members must be present
+in the same directory as @var{archive}.
 
 @item u
 @cindex updating an archive
@@ -708,6 +706,7 @@ The symbol's value is absolute, and will not be changed by further
 linking.
 
 @item B
+@itemx b
 The symbol is in the uninitialized data section (known as BSS).
 
 @item C
@@ -721,9 +720,11 @@ For more details on common symbols, see the discussion of
 @end ifclear
 
 @item D
+@itemx d
 The symbol is in the initialized data section.
 
 @item G
+@itemx g
 The symbol is in an initialized data section for small objects.  Some
 object file formats permit more efficient access to small data objects,
 such as a global int variable as opposed to a large global array.
@@ -732,28 +733,40 @@ such as a global int variable as opposed to a large global array.
 The symbol is an indirect reference to another symbol.  This is a @sc{gnu}
 extension to the a.out object file format which is rarely used.
 
+@item i
+The symbol is in a section specific to the implementation of DLLs.
+
 @item N
 The symbol is a debugging symbol.
 
+@item p
+The symbols is in a stack unwind section.
+
 @item R
+@itemx r
 The symbol is in a read only data section.
 
 @item S
+@itemx s
 The symbol is in an uninitialized data section for small objects.
 
 @item T
+@itemx t
 The symbol is in the text (code) section.
 
 @item U
 The symbol is undefined.
 
 @item V
+@itemx v
 The symbol is a weak object.  When a weak defined symbol is linked with
 a normal defined symbol, the normal defined symbol is used with no error.
 When a weak undefined symbol is linked and the symbol is not defined,
-the value of the weak symbol becomes zero with no error.
+the value of the weak symbol becomes zero with no error.  On some
+systems, uppercase indicates that a default value has been specified.
 
 @item W
+@itemx w
 The symbol is a weak symbol that has not been specifically tagged as a
 weak object symbol.  When a weak defined symbol is linked with a normal
 defined symbol, the normal defined symbol is used with no error.
@@ -761,7 +774,6 @@ When a weak undefined symbol is linked and the symbol is not defined,
 the value of the symbol is determined in a system-specific manner without
 error.  On some systems, uppercase indicates that a default value has been
 specified.
-
 
 @item -
 The symbol is a stabs symbol in an a.out object file.  In this case, the
@@ -1501,7 +1513,7 @@ stripped executable.
 to add a link to the debugging info into the stripped executable.
 @end enumerate
 
-Note - the choice of @code{.dbg} as an extension for the debug info
+Note---the choice of @code{.dbg} as an extension for the debug info
 file is arbitrary.  Also the @code{--only-keep-debug} step is
 optional.  You could instead do this:
 
@@ -1516,7 +1528,7 @@ i.e., the file pointed to by the @option{--add-gnu-debuglink} can be the
 full executable.  It does not have to be a file created by the
 @option{--only-keep-debug} switch.
 
-Note - this switch is only intended for use on fully linked files.  It
+Note---this switch is only intended for use on fully linked files.  It
 does not make sense to use it on object files where the debugging
 information may be incomplete.  Besides the gnu_debuglink feature
 currently only supports the presence of one filename containing
@@ -1528,7 +1540,6 @@ Keep the file's section flags and symbols but remove all section data.
 Specifically, the option:
 
 @itemize
-@item sets the virtual and load addresses of every section to zero;
 @item removes the contents of all sections;
 @item sets the size of every section to zero; and
 @item sets the file's start address to zero.
@@ -1580,6 +1591,7 @@ objdump [@option{-a}|@option{--archive-headers}]
         [@option{-z}|@option{--disassemble-zeroes}]
         [@option{-EB}|@option{-EL}|@option{--endian=}@{big | little @}]
         [@option{-f}|@option{--file-headers}]
+        [@option{-F}|@option{--file-offsets}]
         [@option{--file-start-context}]
         [@option{-g}|@option{--debugging}]
         [@option{-e}|@option{--debugging-tags}]
@@ -1680,11 +1692,11 @@ for more information on demangling.
 
 @item -g
 @itemx --debugging
-Display debugging information.  This attempts to parse debugging
-information stored in the file and print it out using a C like syntax.
-Only certain types of debugging information have been implemented.
-Some other types are supported by @command{readelf -w}.
-@xref{readelf}.
+Display debugging information.  This attempts to parse STABS and IEEE
+debugging format information stored in the file and print it out using
+a C like syntax.  If neither of these formats are found this option
+falls back on the @option{-W} option to print any DWARF information in
+the file.
 
 @item -e
 @itemx --debugging-tags
@@ -1722,6 +1734,16 @@ does not describe endianness information, such as S-records.
 @cindex object file header
 Display summary information from the overall header of
 each of the @var{objfile} files.
+
+@item -F
+@itemx --file-offsets
+@cindex object file offsets
+When disassembling sections, whenever a symbol is displayed, also
+display the file offset of the region of data that is about to be
+dumped.  If zeroes are being skipped, then when disassembly resumes,
+tell the user how many zeroes were skipped and the file offset of the
+location from where the disassembly resumes.  When dumping sections,
+display the file offset of the location from where the dump starts.
 
 @item --file-start-context
 @cindex source code context
@@ -1809,7 +1831,11 @@ switch, but allow finer grained control.  Multiple selections from the
 following may be specified as a comma separated string.
 @option{x86-64}, @option{i386} and @option{i8086} select disassembly for
 the given architecture.  @option{intel} and @option{att} select between
-intel syntax mode and AT&T syntax mode.  @option{addr64}, @option{addr32},
+intel syntax mode and AT&T syntax mode.
+@option{intel-mnemonic} and @option{att-mnemonic} select between
+intel mnemonic mode and AT&T mnemonic mode. @option{intel-mnemonic}
+implies @option{intel} and @option{att-mnemonic} implies @option{att}.
+@option{addr64}, @option{addr32},
 @option{addr16}, @option{data32} and @option{data16} specify the default
 address size and operand size.  These four options will be overridden if
 @option{x86-64}, @option{i386} or @option{i8086} appear later in the
@@ -1819,9 +1845,10 @@ suffix could be inferred by the operands.
 
 For PPC, @option{booke}, @option{booke32} and @option{booke64} select
 disassembly of BookE instructions.  @option{32} and @option{64} select
-PowerPC and PowerPC64 disassembly, respectively.  @option{e300} selects
-disassembly for the e300 family.  @option{440} selects disassembly for
-the PowerPC 440.
+PowerPC and PowerPC64 disassembly, respectively.  @option{e300}
+selects disassembly for the e300 family.  @option{440} selects
+disassembly for the PowerPC 440.  @option{ppcps} selects disassembly
+for the paired single instructions of the PPC750CL.
 
 For MIPS, this option controls the printing of instruction mnemonic
 names and register names in disassembled instructions.  Multiple
@@ -1959,7 +1986,79 @@ of the @option{-d}, @option{-r} and @option{-s} options.
 @itemx --syms
 @cindex symbol table entries, printing
 Print the symbol table entries of the file.
-This is similar to the information provided by the @samp{nm} program.
+This is similar to the information provided by the @samp{nm} program,
+although the display format is different.  The format of the output
+depends upon the format of the file being dumped, but there are two main
+types.  One looks like this:
+
+@smallexample
+[  4](sec  3)(fl 0x00)(ty   0)(scl   3) (nx 1) 0x00000000 .bss
+[  6](sec  1)(fl 0x00)(ty   0)(scl   2) (nx 0) 0x00000000 fred
+@end smallexample
+
+where the number inside the square brackets is the number of the entry
+in the symbol table, the @var{sec} number is the section number, the
+@var{fl} value are the symbol's flag bits, the @var{ty} number is the
+symbol's type, the @var{scl} number is the symbol's storage class and
+the @var{nx} value is the number of auxilary entries associated with
+the symbol.  The last two fields are the symbol's value and its name.
+
+The other common output format, usually seen with ELF based files,
+looks like this:
+
+@smallexample
+00000000 l    d  .bss   00000000 .bss
+00000000 g       .text  00000000 fred
+@end smallexample
+
+Here the first number is the symbol's value (sometimes refered to as
+its address).  The next field is actually a set of characters and
+spaces indicating the flag bits that are set on the symbol.  These
+characters are described below.  Next is the section with which the
+symbol is associated or @emph{*ABS*} if the section is absolute (ie
+not connected with any section), or @emph{*UND*} if the section is
+referenced in the file being dumped, but not defined there.
+
+After the section name comes another field, a number, which for common
+symbols is the alignment and for other symbol is the size.  Finally
+the symbol's name is displayed.
+
+The flag characters are divided into 7 groups as follows:
+@table @code
+@item l
+@itemx g
+@itemx !
+The symbol is local (l), global (g), neither (a space) or both (!).  A
+symbol can be neither local or global for a variety of reasons, e.g.,
+because it is used for debugging, but it is probably an indication of
+a bug if it is ever both local and global.
+
+@item w
+The symbol is weak (w) or strong (a space).
+
+@item C
+The symbol denotes a constructor (C) or an ordinary symbol (a space).
+
+@item W
+The symbol is a warning (W) or a normal symbol (a space).  A warning
+symbol's name is a message to be displayed if the symbol following the
+warning symbol is ever referenced.
+
+@item I
+The symbol is an indirect reference to another symbol (I) or a normal
+symbol (a space).
+
+@item d
+@itemx D
+The symbol is a debugging symbol (d) or a dynamic symbol (D) or a
+normal symbol (a space).
+
+@item F
+@item f
+@item O
+The symbol is the name of a function (F) or a file (f) or an object
+(O) or just a normal symbol (a space).
+@end table
 
 @item -T
 @itemx --dynamic-syms
@@ -2018,7 +2117,7 @@ nm(1), readelf(1), and the Info entries for @file{binutils}.
 
 @smallexample
 @c man begin SYNOPSIS ranlib
-ranlib [@option{-vV}] @var{archive}
+ranlib [@option{-vVt}] @var{archive}
 @c man end
 @end smallexample
 
@@ -2047,6 +2146,9 @@ The @sc{gnu} @command{ranlib} program is another form of @sc{gnu} @command{ar}; 
 @itemx -V
 @itemx --version
 Show the version number of @command{ranlib}.
+
+@item -t
+Update the timestamp of the symbol map of an archive.
 @end table
 
 @c man end
@@ -2257,7 +2359,8 @@ Possible values for @var{encoding} are: @samp{s} = single-7-bit-byte
 characters (ASCII, ISO 8859, etc., default), @samp{S} =
 single-8-bit-byte characters, @samp{b} = 16-bit bigendian, @samp{l} =
 16-bit littleendian, @samp{B} = 32-bit bigendian, @samp{L} = 32-bit
-littleendian. Useful for finding wide character strings.
+littleendian.  Useful for finding wide character strings. (@samp{l}
+and @samp{b} apply to, for example, Unicode UTF-16/UCS-2 encodings).
 
 @item -T @var{bfdname}
 @itemx --target=@var{bfdname}
@@ -2439,22 +2542,22 @@ stripped executable.
 to add a link to the debugging info into the stripped executable.
 @end enumerate
 
-Note - the choice of @code{.dbg} as an extension for the debug info
+Note---the choice of @code{.dbg} as an extension for the debug info
 file is arbitrary.  Also the @code{--only-keep-debug} step is
 optional.  You could instead do this:
 
 @enumerate
 @item Link the executable as normal.
-@item Copy @code{foo} to  @code{foo.full}
+@item Copy @code{foo} to @code{foo.full}
 @item Run @code{strip --strip-debug foo}
 @item Run @code{objcopy --add-gnu-debuglink=foo.full foo}
 @end enumerate
 
-ie the file pointed to by the @option{--add-gnu-debuglink} can be the
+i.e., the file pointed to by the @option{--add-gnu-debuglink} can be the
 full executable.  It does not have to be a file created by the
 @option{--only-keep-debug} switch.
 
-Note - this switch is only intended for use on fully linked files.  It
+Note---this switch is only intended for use on fully linked files.  It
 does not make sense to use it on object files where the debugging
 information may be incomplete.  Besides the gnu_debuglink feature
 currently only supports the presence of one filename containing
@@ -2554,11 +2657,11 @@ name which makes it invalid).  This command however will work:
 echo _Z1fv, | c++filt -n
 @end smallexample
 
-and will display ``f(),'' ie the demangled name followed by a
+and will display ``f(),'', i.e., the demangled name followed by a
 trailing comma.  This behaviour is because when the names are read
 from the standard input it is expected that they might be part of an
 assembler source file where there might be extra, extraneous
-characters trailing after a mangled name.  eg:
+characters trailing after a mangled name.  For example:
 
 @smallexample
     .type   _Z1fv, @@function
@@ -2594,7 +2697,7 @@ the function's parameters.
 @itemx --types
 Attempt to demangle types as well as function names.  This is disabled
 by default since mangled types are normally only used internally in
-the compiler, and they can be confused with non-mangled names.  eg
+the compiler, and they can be confused with non-mangled names.  For example,
 a function called ``a'' treated as a mangled type name would be
 demangled to ``signed char''.
 
@@ -3021,12 +3124,11 @@ format. This is the default behaviour.
 
 @item -v
 @item --verbose
-Enable verbose mode.  This tells you what the preprocessor is if you
-didn't specify one.
+Enable verbose mode.
 
 @item -V
 @item --version
-Prints the version number for @command{windres}.
+Prints the version number for @command{windmc}.
 
 @item -x @var{path}
 @itemx --xdgb @var{path}
@@ -3601,8 +3703,10 @@ readelf [@option{-a}|@option{--all}]
         [@option{-A}|@option{--arch-specific}]
         [@option{-D}|@option{--use-dynamic}]
         [@option{-x} <number or name>|@option{--hex-dump=}<number or name>]
-        [@option{-w[liaprmfFsoR]}|
-         @option{--debug-dump}[=line,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=loc,=Ranges]]
+        [@option{-p} <number or name>|@option{--string-dump=}<number or name>]
+        [@option{-c}|@option{--archive-index}]
+        [@option{-w[lLiaprmfFsoR]}|
+         @option{--debug-dump}[=rawline,=decodedline,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=loc,=Ranges]]
         [@option{-I}|@option{-histogram}]
         [@option{-v}|@option{--version}]
         [@option{-W}|@option{--wide}]
@@ -3726,11 +3830,28 @@ Displays the contents of the indicated section as a hexadecimal dump.
 A number identifies a particular section by index in the section table;
 any other string identifies all sections with that name in the object file.
 
-@item -w[liaprmfFsoR]
-@itemx --debug-dump[=line,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=loc,=Ranges]
+@item -p <number or name>
+@itemx --string-dump=<number or name>
+Displays the contents of the indicated section as printable strings.
+A number identifies a particular section by index in the section table;
+any other string identifies all sections with that name in the object file.
+
+@item -c
+@itemx --archive-index
+@cindex Archive file symbol index information
+Displays the file symbol index infomation contained in the header part
+of binary archives.  Performs the same function as the @option{t}
+command to @command{ar}, but without using the BFD library.  @xref{ar}.
+
+@item -w[lLiaprmfFsoR]
+@itemx --debug-dump[=rawline,=decodedline,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=loc,=Ranges]
 Displays the contents of the debug sections in the file, if any are
 present.  If one of the optional letters or words follows the switch
 then only data found in those specific sections will be dumped.
+
+Note: the @option{=decodedline} option will display the interpreted
+contents of a .debug_line section whereas the @option{=rawline} option
+dumps the contents in a raw format.
 
 @item -I
 @itemx --histogram
@@ -3784,7 +3905,7 @@ Display the version number of the program.
 @end table
 @c man end
 
-@node Selecting The Target System
+@node Selecting the Target System
 @chapter Selecting the Target System
 
 You can specify two aspects of the target system to the @sc{gnu}
@@ -4140,6 +4261,9 @@ Such guesses are usually wrong.  Even we cannot guess right about such
 things without first using the debugger to find the facts.
 @end itemize
 
+@node GNU Free Documentation License
+@appendix GNU Free Documentation License
+ 
 @include fdl.texi
 
 @node Binutils Index
