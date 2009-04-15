@@ -21,6 +21,12 @@
 # Based on scripts written by Ian Lance Taylor <ian@cygnus.com>
 # and Ken Raeburn <raeburn@cygnus.com>.
 
+# Exclude non-ELF targets.
+if ![is_elf_format] {
+    verbose "$READELF is only intended for ELF targets" 2
+    return
+}
+
 # First some helpful procedures, then the tests themselves
 
 # Return the contents of the filename given
@@ -41,9 +47,12 @@ proc readelf_find_size { binary_file } {
 
     set readelf_size ""
     set testname "finding out ELF size with readelf -h"
-    catch "exec $READELF $READELFFLAGS -h $binary_file > readelf.out" got
+    set got [remote_exec host "$READELF $READELFFLAGS -h $binary_file" "" "/dev/null" "readelf.out"]
+    if [is_remote host] then {
+        remote_upload host "readelf.out"
+    }
 
-    if ![string match "" $got] then {
+    if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]]} then {
 	send_log $got
 	fail $testname
 	return
@@ -76,13 +85,13 @@ proc readelf_test { options binary_file regexp_file xfails } {
     global subdir
     
     send_log "exec $READELF $READELFFLAGS $options $binary_file > readelf.out\n"
-    catch "exec $READELF $READELFFLAGS $options $binary_file > readelf.out" got
+    set got [remote_exec host "$READELF $READELFFLAGS $options $binary_file" "" "/dev/null" "readelf.out"]
 
     foreach xfail $xfails {
 	setup_xfail $xfail
     }
 
-    if ![string match "" $got] then {
+    if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
 	fail "readelf $options (reason: unexpected output)"
 	send_log $got
 	send_log "\n"
@@ -146,8 +155,7 @@ proc readelf_wi_test {} {
     set tempfile [remote_download host tmpdir/testprog.o]
 
     # Run "readelf -wi" on it.
-    send_log "exec $READELF $READELFFLAGS -wi $tempfile > readelf.out\n"
-    catch "exec $READELF $READELFFLAGS -wi $tempfile > readelf.out" got
+    set got [remote_exec host "$READELF $READELFFLAGS -wi $tempfile" "" "/dev/null" "readelf.out"]
 
     # Upload the results.
     set output [remote_upload host readelf.out]
@@ -155,7 +163,7 @@ proc readelf_wi_test {} {
     file_on_host delete $tempfile
     
     # Strip any superflous warnings.
-    set got [prune_readelf_wi_warnings $got]
+    set got [prune_readelf_wi_warnings [lindex $got 1]]
 
     if ![string match "" $got] then {
 	fail "readelf $READELFFLAGS -wi (reason: unexpected output)"
@@ -200,11 +208,95 @@ proc readelf_wi_test {} {
     pass "readelf -wi"
 }
 
+# This tests "readelf -wa", but on a file with a compressed
+# .debug_abbrev section.
 
-# Exclude non-ELF targets.
-if ![is_elf_format] {
-    verbose "$READELF is only intended for ELF targets" 2
-    return
+proc readelf_compressed_wa_test {} {
+    global READELF
+    global READELFFLAGS
+    global srcdir
+    global subdir
+    
+    # Compile the compressed-debug-section test file.
+    if { [target_compile $srcdir/$subdir/dw2-compressed.S tmpdir/dw2-compressed.o object debug] != "" } {
+	verbose "Unable to compile test file."
+	untested "readelf -wa (compressed)"
+	return
+    }
+
+    # Download it.
+    set tempfile [remote_download host tmpdir/dw2-compressed.o]
+
+    # Run "readelf -wa" on it.
+    set got [remote_exec host "$READELF $READELFFLAGS -wa $tempfile" "" "/dev/null" "readelf.out"]
+
+    # Upload the results.
+    set output [remote_upload host readelf.out]
+
+    file_on_host delete $tempfile
+    
+    if { [string compare [file_contents readelf.out] [file_contents $srcdir/$subdir/readelf.wa]] != 0 } then {
+	fail "readelf -wa (compressed)"
+	verbose "output is \n[file_contents readelf.out]" 2
+	verbose "expected is \n[file_contents $srcdir/$subdir/readelf.wa]" 2
+	return
+    }
+
+    pass "readelf -wa (compressed)"
+}
+
+# Test readelf's dumping abilities.
+
+proc readelf_dump_test {} {
+    global READELF
+    global READELFFLAGS
+    global srcdir
+    global subdir
+    
+    # Assemble the dump test file.
+    if {![binutils_assemble $srcdir/$subdir/dumptest.s tmpdir/dumptest.o]} then {
+      unresolved "readelf -p: failed to assemble dump test file"
+      return
+    }
+    # Download it.
+    set tempfile [remote_download host tmpdir/dumptest.o]
+
+    # Run "readelf -p.data" on it.
+    set got [remote_exec host "$READELF $READELFFLAGS -p.data $tempfile" "" "/dev/null" "readelf.out"]
+    set got [lindex $got 1]
+
+    # Upload the results.
+    set output [remote_upload host readelf.out]
+
+    # Check for something going wrong.
+    if ![string match "" $got] then {
+	fail "readelf -p: unexpected output"
+	send_log $got
+	send_log "\n"
+	return
+    }
+
+    # Search for strings that should be in the output.
+    set sought {
+	".*test_string.*"
+    }
+    
+    foreach looked_for $sought {	
+	set lines [grep $output $looked_for]
+	if ![llength $lines] then {
+	    fail "readelf -p: missing: $looked_for"
+	    send_log readelf.out
+	    return
+	}
+    }
+
+    file_on_host delete $tempfile    
+    file_on_host delete $output
+
+    # All done.
+    pass "readelf -p"
+
+    # XXX FIXME: Add test of readelf -x here
 }
 
 if ![is_remote host] {
@@ -218,7 +310,7 @@ send_user "Version [binutil_version $READELF]"
 
 # Assemble the test file.
 if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
-    perror "unresolved 1"
+    perror "could not assemble test file"
     unresolved "readelf - failed to assemble"
     return
 }
@@ -239,3 +331,6 @@ readelf_test -s $tempfile readelf.ss {}
 readelf_test -r $tempfile readelf.r  {}
 
 readelf_wi_test
+readelf_compressed_wa_test
+
+readelf_dump_test

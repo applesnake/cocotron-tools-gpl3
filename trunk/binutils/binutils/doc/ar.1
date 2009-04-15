@@ -25,11 +25,11 @@
 ..
 .\" Set up some character translations and predefined strings.  \*(-- will
 .\" give an unbreakable dash, \*(PI will give pi, \*(L" will give a left
-.\" double quote, and \*(R" will give a right double quote.  \*(C+ will
-.\" give a nicer C++.  Capital omega is used to do unbreakable dashes and
-.\" therefore won't be available.  \*(C` and \*(C' expand to `' in nroff,
-.\" nothing in troff, for use with C<>.
-.tr \(*W-
+.\" double quote, and \*(R" will give a right double quote.  | will give a
+.\" real vertical bar.  \*(C+ will give a nicer C++.  Capital omega is used to
+.\" do unbreakable dashes and therefore won't be available.  \*(C` and \*(C'
+.\" expand to `' in nroff, nothing in troff, for use with C<>.
+.tr \(*W-|\(bv\*(Tr
 .ds C+ C\v'-.1v'\h'-1p'\s-2+\h'-1p'+\s0\v'.1v'\h'-1p'
 .ie n \{\
 .    ds -- \(*W-
@@ -128,7 +128,7 @@
 .\" ========================================================================
 .\"
 .IX Title "AR 1"
-.TH AR 1 "2007-08-06" "binutils-2.17.90" "GNU Development Tools"
+.TH AR 1 "2008-09-10" "binutils-2.18.90" "GNU Development Tools"
 .SH "NAME"
 ar \- create, modify, and extract from archives
 .SH "SYNOPSIS"
@@ -167,6 +167,17 @@ their placement in the archive.
 You may use \fBnm \-s\fR or \fBnm \-\-print\-armap\fR to list this index
 table.  If an archive lacks the table, another form of \fBar\fR called
 \&\fBranlib\fR can be used to add just the table.
+.PP
+\&\s-1GNU\s0 \fBar\fR can optionally create a \fIthin\fR archive,
+which contains a symbol index and references to the original copies
+of the member files of the archives.  Such an archive is useful
+for building libraries for use within a local build, where the
+relocatable objects are expected to remain available, and copying the
+contents of each object would only waste time and space.  Thin archives
+are also \fIflattened\fR, so that adding one or more archives to a
+thin archive will add the elements of the nested archive individually.
+The paths to the elements of the archive are stored relative to the
+archive itself.
 .PP
 \&\s-1GNU\s0 \fBar\fR is designed to be compatible with two different
 facilities.  You can control its activity using command-line options,
@@ -270,6 +281,8 @@ use the \fBv\fR modifier with this operation, to request that
 .Sp
 If you do not specify a \fImember\fR, all files in the archive
 are extracted.
+.Sp
+Files cannot be extracted from a thin archive.
 .PP
 A number of modifiers (\fImod\fR) may immediately follow the \fIp\fR
 keyletter, to specify variations on an operation's behavior:
@@ -338,6 +351,11 @@ large library in several steps.  The resulting archive can not be used
 with the linker.  In order to build a symbol table, you must omit the
 \&\fBS\fR modifier on the last execution of \fBar\fR, or you must run
 \&\fBranlib\fR on the archive.
+.IP "\fBT\fR" 4
+.IX Item "T"
+Make the specified \fIarchive\fR a \fIthin\fR archive.  If it already
+exists and is a regular archive, the existing members must be present
+in the same directory as \fIarchive\fR.
 .IP "\fBu\fR" 4
 .IX Item "u"
 Normally, \fBar r\fR... inserts all files
@@ -380,10 +398,10 @@ with a backslash.  The \fIfile\fR may itself contain additional
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
 Copyright (c) 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008 Free Software Foundation, Inc.
 .PP
 Permission is granted to copy, distribute and/or modify this document
-under the terms of the \s-1GNU\s0 Free Documentation License, Version 1.1
+under the terms of the \s-1GNU\s0 Free Documentation License, Version 1.2
 or any later version published by the Free Software Foundation;
 with no Invariant Sections, with no Front-Cover Texts, and with no
 Back-Cover Texts.  A copy of the license is included in the

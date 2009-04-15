@@ -1,6 +1,6 @@
 /* dlltool.c -- tool to generate stuff for PE style DLLs
    Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005, 2006, 2007 Free Software Foundation, Inc.
+   2005, 2006, 2007, 2008 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -271,7 +271,7 @@ static char *look_for_prog (const char *, const char *, int);
 static char *deduce_name (const char *);
 
 #ifdef DLLTOOL_MCORE_ELF
-static void mcore_elf_cache_filename (char *);
+static void mcore_elf_cache_filename (const char *);
 static void mcore_elf_gen_out_file (void);
 #endif
 
@@ -1546,7 +1546,7 @@ scan_obj_file (const char *filename)
 
 #ifdef DLLTOOL_MCORE_ELF
       if (mcore_elf_out_file)
-	mcore_elf_cache_filename ((char *) filename);
+	mcore_elf_cache_filename (filename);
 #endif
     }
 
@@ -1604,7 +1604,7 @@ flush_page (FILE *f, long *need, int page_addr, int on_page)
 
   for (i = 0; i < on_page; i++)
     {
-      long needed = need[i];
+      unsigned long needed = need[i];
 
       if (needed)
 	needed = ((needed - page_addr) | 0x3000) & 0xffff;
@@ -1826,8 +1826,8 @@ gen_exp_file (void)
     {
       fprintf (f, "\t.section	.edata\n\n");
       fprintf (f, "\t%s	0	%s Allways 0\n", ASM_LONG, ASM_C);
-      fprintf (f, "\t%s	0x%lx	%s Time and date\n", ASM_LONG, (long) time(0),
-	       ASM_C);
+      fprintf (f, "\t%s	0x%lx	%s Time and date\n", ASM_LONG,
+	       (unsigned long) time(0), ASM_C);
       fprintf (f, "\t%s	0	%s Major and Minor version\n", ASM_LONG, ASM_C);
       fprintf (f, "\t%sname%s	%s Ptr to name of dll\n", ASM_RVA_BEFORE, ASM_RVA_AFTER, ASM_C);
       fprintf (f, "\t%s	%d	%s Starting ordinal of exports\n", ASM_LONG, d_low_ord, ASM_C);
@@ -1891,7 +1891,7 @@ gen_exp_file (void)
 		     ASM_RVA_BEFORE, exp->ordinal, ASM_RVA_AFTER);
 	}
 
-      fprintf (f,"%s Export Oridinal Table\n", ASM_C);
+      fprintf (f,"%s Export Ordinal Table\n", ASM_C);
       fprintf (f, "anords:\n");
       for (i = 0; (exp = d_exports_lexically[i]); i++)
 	{
@@ -2813,6 +2813,7 @@ gen_lib_file (void)
 
   bfd_set_format (outarch, bfd_archive);
   outarch->has_armap = 1;
+  outarch->is_thin_archive = 0;
 
   /* Work out a reasonable size of things to put onto one line.  */
   ar_head = make_head ();
@@ -2988,7 +2989,7 @@ process_duplicates (export_type **d_export_vec)
 	      if (a->ordinal != -1
 		  && b->ordinal != -1)
 		/* xgettext:c-format */
-		fatal (_("Error, duplicate EXPORT with oridinals: %s"),
+		fatal (_("Error, duplicate EXPORT with ordinals: %s"),
 		      a->name);
 
 	      /* Merge attributes.  */
@@ -3558,7 +3559,7 @@ deduce_name (const char *prog_name)
 #ifdef DLLTOOL_MCORE_ELF
 typedef struct fname_cache
 {
-  char *               filename;
+  const char *         filename;
   struct fname_cache * next;
 }
 fname_cache;
@@ -3566,7 +3567,7 @@ fname_cache;
 static fname_cache fnames;
 
 static void
-mcore_elf_cache_filename (char * filename)
+mcore_elf_cache_filename (const char * filename)
 {
   fname_cache * ptr;
 

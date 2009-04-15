@@ -60,6 +60,52 @@ bfd_nonfatal (const char *string)
     fprintf (stderr, "%s: %s\n", program_name, errmsg);
 }
 
+/* Issue a non fatal error message.  FILENAME, or if NULL then BFD,
+   are used to indicate the problematic file.  SECTION, if non NULL,
+   is used to provide a section name.  If FORMAT is non-null, then it
+   is used to print additional information via vfprintf.  Finally the
+   bfd error message is printed.  In summary, error messages are of
+   one of the following forms:
+
+   PROGRAM:file: bfd-error-message
+   PROGRAM:file[section]: bfd-error-message
+   PROGRAM:file: printf-message: bfd-error-message
+   PROGRAM:file[section]: printf-message: bfd-error-message
+*/
+
+void
+bfd_nonfatal_message (const char *filename,
+		      const bfd *bfd, const asection *section,
+		      const char *format, ...)
+{
+  const char *errmsg = bfd_errmsg (bfd_get_error ());
+  const char *section_name = NULL;
+  va_list args;
+
+  va_start (args, format);
+  fprintf (stderr, "%s", program_name);
+  
+  if (bfd)
+    {
+      if (!filename)
+	filename = bfd_get_filename (bfd);
+      if (section)
+	section_name = bfd_get_section_name (bfd, section);
+    }
+  if (section_name)
+    fprintf (stderr, ":%s[%s]", filename, section_name);
+  else
+    fprintf (stderr, ":%s", filename);
+
+  if (format)
+    {
+      fprintf (stderr, ": ");
+      vfprintf (stderr, format, args);
+    }
+  fprintf (stderr, ": %s\n", errmsg);
+  va_end (args);
+}
+
 void
 bfd_fatal (const char *string)
 {
@@ -149,16 +195,18 @@ list_supported_targets (const char *name, FILE *f)
 void
 list_supported_architectures (const char *name, FILE *f)
 {
-  const char **arch;
+  const char ** arch;
+  const char ** arches;
 
   if (name == NULL)
     fprintf (f, _("Supported architectures:"));
   else
     fprintf (f, _("%s: supported architectures:"), name);
 
-  for (arch = bfd_arch_list (); *arch; arch++)
+  for (arch = arches = bfd_arch_list (); *arch; arch++)
     fprintf (f, " %s", *arch);
   fprintf (f, "\n");
+  free (arches);
 }
 
 /* The length of the longest architecture name + 1.  */

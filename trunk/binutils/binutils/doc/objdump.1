@@ -25,11 +25,11 @@
 ..
 .\" Set up some character translations and predefined strings.  \*(-- will
 .\" give an unbreakable dash, \*(PI will give pi, \*(L" will give a left
-.\" double quote, and \*(R" will give a right double quote.  \*(C+ will
-.\" give a nicer C++.  Capital omega is used to do unbreakable dashes and
-.\" therefore won't be available.  \*(C` and \*(C' expand to `' in nroff,
-.\" nothing in troff, for use with C<>.
-.tr \(*W-
+.\" double quote, and \*(R" will give a right double quote.  | will give a
+.\" real vertical bar.  \*(C+ will give a nicer C++.  Capital omega is used to
+.\" do unbreakable dashes and therefore won't be available.  \*(C` and \*(C'
+.\" expand to `' in nroff, nothing in troff, for use with C<>.
+.tr \(*W-|\(bv\*(Tr
 .ds C+ C\v'-.1v'\h'-1p'\s-2+\h'-1p'+\s0\v'.1v'\h'-1p'
 .ie n \{\
 .    ds -- \(*W-
@@ -128,7 +128,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OBJDUMP 1"
-.TH OBJDUMP 1 "2007-08-06" "binutils-2.17.90" "GNU Development Tools"
+.TH OBJDUMP 1 "2008-09-10" "binutils-2.18.90" "GNU Development Tools"
 .SH "NAME"
 objdump \- display information from object files.
 .SH "SYNOPSIS"
@@ -141,6 +141,7 @@ objdump [\fB\-a\fR|\fB\-\-archive\-headers\fR]
         [\fB\-z\fR|\fB\-\-disassemble\-zeroes\fR]
         [\fB\-EB\fR|\fB\-EL\fR|\fB\-\-endian=\fR{big | little }]
         [\fB\-f\fR|\fB\-\-file\-headers\fR]
+        [\fB\-F\fR|\fB\-\-file\-offsets\fR]
         [\fB\-\-file\-start\-context\fR]
         [\fB\-g\fR|\fB\-\-debugging\fR]
         [\fB\-e\fR|\fB\-\-debugging\-tags\fR]
@@ -216,7 +217,7 @@ automatically recognize many formats.
 For example,
 .Sp
 .Vb 1
-\&        objdump \-b oasys \-m vax \-h fu.o
+\&        objdump -b oasys -m vax -h fu.o
 .Ve
 .Sp
 displays summary information from the section headers (\fB\-h\fR) of
@@ -240,10 +241,11 @@ choose an appropriate demangling style for your compiler.
 .IP "\fB\-\-debugging\fR" 4
 .IX Item "--debugging"
 .PD
-Display debugging information.  This attempts to parse debugging
-information stored in the file and print it out using a C like syntax.
-Only certain types of debugging information have been implemented.
-Some other types are supported by \fBreadelf \-w\fR.
+Display debugging information.  This attempts to parse \s-1STABS\s0 and \s-1IEEE\s0
+debugging format information stored in the file and print it out using
+a C like syntax.  If neither of these formats are found this option
+falls back on the \fB\-W\fR option to print any \s-1DWARF\s0 information in
+the file.
 .IP "\fB\-e\fR" 4
 .IX Item "-e"
 .PD 0
@@ -292,6 +294,18 @@ does not describe endianness information, such as S\-records.
 .PD
 Display summary information from the overall header of
 each of the \fIobjfile\fR files.
+.IP "\fB\-F\fR" 4
+.IX Item "-F"
+.PD 0
+.IP "\fB\-\-file\-offsets\fR" 4
+.IX Item "--file-offsets"
+.PD
+When disassembling sections, whenever a symbol is displayed, also
+display the file offset of the region of data that is about to be
+dumped.  If zeroes are being skipped, then when disassembly resumes,
+tell the user how many zeroes were skipped and the file offset of the
+location from where the disassembly resumes.  When dumping sections,
+display the file offset of the location from where the dump starts.
 .IP "\fB\-\-file\-start\-context\fR" 4
 .IX Item "--file-start-context"
 Specify that when displaying interlisted source code/disassembly
@@ -393,7 +407,11 @@ switch, but allow finer grained control.  Multiple selections from the
 following may be specified as a comma separated string.
 \&\fBx86\-64\fR, \fBi386\fR and \fBi8086\fR select disassembly for
 the given architecture.  \fBintel\fR and \fBatt\fR select between
-intel syntax mode and \s-1AT&T\s0 syntax mode.  \fBaddr64\fR, \fBaddr32\fR,
+intel syntax mode and \s-1AT&T\s0 syntax mode.
+\&\fBintel-mnemonic\fR and \fBatt-mnemonic\fR select between
+intel mnemonic mode and \s-1AT&T\s0 mnemonic mode. \fBintel-mnemonic\fR
+implies \fBintel\fR and \fBatt-mnemonic\fR implies \fBatt\fR.
+\&\fBaddr64\fR, \fBaddr32\fR,
 \&\fBaddr16\fR, \fBdata32\fR and \fBdata16\fR specify the default
 address size and operand size.  These four options will be overridden if
 \&\fBx86\-64\fR, \fBi386\fR or \fBi8086\fR appear later in the
@@ -403,9 +421,10 @@ suffix could be inferred by the operands.
 .Sp
 For \s-1PPC\s0, \fBbooke\fR, \fBbooke32\fR and \fBbooke64\fR select
 disassembly of BookE instructions.  \fB32\fR and \fB64\fR select
-PowerPC and PowerPC64 disassembly, respectively.  \fBe300\fR selects
-disassembly for the e300 family.  \fB440\fR selects disassembly for
-the PowerPC 440.
+PowerPC and PowerPC64 disassembly, respectively.  \fBe300\fR
+selects disassembly for the e300 family.  \fB440\fR selects
+disassembly for the PowerPC 440.  \fBppcps\fR selects disassembly
+for the paired single instructions of the \s-1PPC750CL\s0.
 .Sp
 For \s-1MIPS\s0, this option controls the printing of instruction mnemonic
 names and register names in disassembled instructions.  Multiple
@@ -557,7 +576,105 @@ of the \fB\-d\fR, \fB\-r\fR and \fB\-s\fR options.
 .IX Item "--syms"
 .PD
 Print the symbol table entries of the file.
-This is similar to the information provided by the \fBnm\fR program.
+This is similar to the information provided by the \fBnm\fR program,
+although the display format is different.  The format of the output
+depends upon the format of the file being dumped, but there are two main
+types.  One looks like this:
+.Sp
+.Vb 2
+\&        [  4](sec  3)(fl 0x00)(ty   0)(scl   3) (nx 1) 0x00000000 .bss
+\&        [  6](sec  1)(fl 0x00)(ty   0)(scl   2) (nx 0) 0x00000000 fred
+.Ve
+.Sp
+where the number inside the square brackets is the number of the entry
+in the symbol table, the \fIsec\fR number is the section number, the
+\&\fIfl\fR value are the symbol's flag bits, the \fIty\fR number is the
+symbol's type, the \fIscl\fR number is the symbol's storage class and
+the \fInx\fR value is the number of auxilary entries associated with
+the symbol.  The last two fields are the symbol's value and its name.
+.Sp
+The other common output format, usually seen with \s-1ELF\s0 based files,
+looks like this:
+.Sp
+.Vb 2
+\&        00000000 l    d  .bss   00000000 .bss
+\&        00000000 g       .text  00000000 fred
+.Ve
+.Sp
+Here the first number is the symbol's value (sometimes refered to as
+its address).  The next field is actually a set of characters and
+spaces indicating the flag bits that are set on the symbol.  These
+characters are described below.  Next is the section with which the
+symbol is associated or \fI*ABS*\fR if the section is absolute (ie
+not connected with any section), or \fI*UND*\fR if the section is
+referenced in the file being dumped, but not defined there.
+.Sp
+After the section name comes another field, a number, which for common
+symbols is the alignment and for other symbol is the size.  Finally
+the symbol's name is displayed.
+.Sp
+The flag characters are divided into 7 groups as follows:
+.RS 4
+.ie n .IP """l""" 4
+.el .IP "\f(CWl\fR" 4
+.IX Item "l"
+.PD 0
+.ie n .IP """g""" 4
+.el .IP "\f(CWg\fR" 4
+.IX Item "g"
+.ie n .IP """!""" 4
+.el .IP "\f(CW!\fR" 4
+.IX Item "!"
+.PD
+The symbol is local (l), global (g), neither (a space) or both (!).  A
+symbol can be neither local or global for a variety of reasons, e.g.,
+because it is used for debugging, but it is probably an indication of
+a bug if it is ever both local and global.
+.ie n .IP """w""" 4
+.el .IP "\f(CWw\fR" 4
+.IX Item "w"
+The symbol is weak (w) or strong (a space).
+.ie n .IP """C""" 4
+.el .IP "\f(CWC\fR" 4
+.IX Item "C"
+The symbol denotes a constructor (C) or an ordinary symbol (a space).
+.ie n .IP """W""" 4
+.el .IP "\f(CWW\fR" 4
+.IX Item "W"
+The symbol is a warning (W) or a normal symbol (a space).  A warning
+symbol's name is a message to be displayed if the symbol following the
+warning symbol is ever referenced.
+.ie n .IP """I""" 4
+.el .IP "\f(CWI\fR" 4
+.IX Item "I"
+The symbol is an indirect reference to another symbol (I) or a normal
+symbol (a space).
+.ie n .IP """d""" 4
+.el .IP "\f(CWd\fR" 4
+.IX Item "d"
+.PD 0
+.ie n .IP """D""" 4
+.el .IP "\f(CWD\fR" 4
+.IX Item "D"
+.PD
+The symbol is a debugging symbol (d) or a dynamic symbol (D) or a
+normal symbol (a space).
+.ie n .IP """F""" 4
+.el .IP "\f(CWF\fR" 4
+.IX Item "F"
+.PD 0
+.ie n .IP """f""" 4
+.el .IP "\f(CWf\fR" 4
+.IX Item "f"
+.ie n .IP """O""" 4
+.el .IP "\f(CWO\fR" 4
+.IX Item "O"
+.PD
+The symbol is the name of a function (F) or a file (f) or an object
+(O) or just a normal symbol (a space).
+.RE
+.RS 4
+.RE
 .IP "\fB\-T\fR" 4
 .IX Item "-T"
 .PD 0
@@ -625,10 +742,10 @@ with a backslash.  The \fIfile\fR may itself contain additional
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
 Copyright (c) 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008 Free Software Foundation, Inc.
 .PP
 Permission is granted to copy, distribute and/or modify this document
-under the terms of the \s-1GNU\s0 Free Documentation License, Version 1.1
+under the terms of the \s-1GNU\s0 Free Documentation License, Version 1.2
 or any later version published by the Free Software Foundation;
 with no Invariant Sections, with no Front-Cover Texts, and with no
 Back-Cover Texts.  A copy of the license is included in the
