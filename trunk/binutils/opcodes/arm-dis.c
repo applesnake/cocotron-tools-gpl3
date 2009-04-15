@@ -866,10 +866,10 @@ static const struct opcode32 arm_opcodes[] =
   {ARM_EXT_V6, 0x06500f70, 0x0ff00ff0, "usub16%c\t%12-15r, %16-19r, %0-3r"},
   {ARM_EXT_V6, 0x06500ff0, 0x0ff00ff0, "usub8%c\t%12-15r, %16-19r, %0-3r"},
   {ARM_EXT_V6, 0x06500f50, 0x0ff00ff0, "usubaddx%c\t%12-15r, %16-19r, %0-3r"},
-  {ARM_EXT_V6, 0x06bf0f30, 0x0fff0ff0, "rev%c\t\%12-15r, %0-3r"},
-  {ARM_EXT_V6, 0x06bf0fb0, 0x0fff0ff0, "rev16%c\t\%12-15r, %0-3r"},
-  {ARM_EXT_V6, 0x06ff0fb0, 0x0fff0ff0, "revsh%c\t\%12-15r, %0-3r"},
-  {ARM_EXT_V6, 0xf8100a00, 0xfe50ffff, "rfe%23?id%24?ba\t\%16-19r%21'!"},
+  {ARM_EXT_V6, 0x06bf0f30, 0x0fff0ff0, "rev%c\t%12-15r, %0-3r"},
+  {ARM_EXT_V6, 0x06bf0fb0, 0x0fff0ff0, "rev16%c\t%12-15r, %0-3r"},
+  {ARM_EXT_V6, 0x06ff0fb0, 0x0fff0ff0, "revsh%c\t%12-15r, %0-3r"},
+  {ARM_EXT_V6, 0xf8100a00, 0xfe50ffff, "rfe%23?id%24?ba\t%16-19r%21'!"},
   {ARM_EXT_V6, 0x06bf0070, 0x0fff0ff0, "sxth%c\t%12-15r, %0-3r"},
   {ARM_EXT_V6, 0x06bf0470, 0x0fff0ff0, "sxth%c\t%12-15r, %0-3r, ror #8"},
   {ARM_EXT_V6, 0x06bf0870, 0x0fff0ff0, "sxth%c\t%12-15r, %0-3r, ror #16"},
@@ -3974,6 +3974,7 @@ print_insn (bfd_vma pc, struct disassemble_info *info, bfd_boolean little)
   int           status;
   int           is_thumb = FALSE;
   int           is_data = FALSE;
+  int           little_code;
   unsigned int	size = 4;
   void	 	(*printer) (bfd_vma, struct disassemble_info *, long);
   bfd_boolean   found = FALSE;
@@ -3986,9 +3987,14 @@ print_insn (bfd_vma pc, struct disassemble_info *info, bfd_boolean little)
       info->disassembler_options = NULL;
     }
 
+  /* Decide if our code is going to be little-endian, despite what the
+     function argument might say.  */
+  little_code = ((info->endian_code == BFD_ENDIAN_LITTLE) || little);
+
   /* First check the full symtab for a mapping symbol, even if there
      are no usable non-mapping symbols for this address.  */
   if (info->symtab != NULL
+      && * info->symtab
       && bfd_asymbol_flavour (*info->symtab) == bfd_target_elf_flavour)
     {
       bfd_vma addr;
@@ -4130,7 +4136,7 @@ print_insn (bfd_vma pc, struct disassemble_info *info, bfd_boolean little)
       size = 4;
 
       status = info->read_memory_func (pc, (bfd_byte *)b, 4, info);
-      if (little)
+      if (little_code)
 	given = (b[0]) | (b[1] << 8) | (b[2] << 16) | (b[3] << 24);
       else
 	given = (b[3]) | (b[2] << 8) | (b[1] << 16) | (b[0] << 24);
@@ -4146,7 +4152,7 @@ print_insn (bfd_vma pc, struct disassemble_info *info, bfd_boolean little)
       size = 2;
 
       status = info->read_memory_func (pc, (bfd_byte *)b, 2, info);
-      if (little)
+      if (little_code)
 	given = (b[0]) | (b[1] << 8);
       else
 	given = (b[1]) | (b[0] << 8);
@@ -4160,7 +4166,7 @@ print_insn (bfd_vma pc, struct disassemble_info *info, bfd_boolean little)
 	      || (given & 0xF800) == 0xE800)
 	    {
 	      status = info->read_memory_func (pc + 2, (bfd_byte *)b, 2, info);
-	      if (little)
+	      if (little_code)
 		given = (b[0]) | (b[1] << 8) | (given << 16);
 	      else
 		given = (b[1]) | (b[0] << 8) | (given << 16);
@@ -4171,7 +4177,7 @@ print_insn (bfd_vma pc, struct disassemble_info *info, bfd_boolean little)
 	}
 
       if (ifthen_address != pc)
-	find_ifthen_state(pc, info, little);
+	find_ifthen_state(pc, info, little_code);
 
       if (ifthen_state)
 	{
@@ -4209,6 +4215,12 @@ print_insn (bfd_vma pc, struct disassemble_info *info, bfd_boolean little)
 int
 print_insn_big_arm (bfd_vma pc, struct disassemble_info *info)
 {
+  /* Detect BE8-ness and record it in the disassembler info.  */
+  if (info->flavour == bfd_target_elf_flavour
+      && info->section != NULL
+      && (elf_elfheader (info->section->owner)->e_flags & EF_ARM_BE8))
+    info->endian_code = BFD_ENDIAN_LITTLE;
+
   return print_insn (pc, info, FALSE);
 }
 

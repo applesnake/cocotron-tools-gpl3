@@ -1593,10 +1593,10 @@ const struct m68k_opcode m68k_opcodes[] =
 {"movew", 2,	one(0041300),	one(0177700), "Cs$s", m68010up },
 {"movew", 2,	one(0041300),	one(0177770), "CsDs", mcfisa_a },
 {"movew", 2,	one(0042300),	one(0177700), ";wCd", m68000up },
-{"movew", 2,	one(0042300),	one(0177700), "DsCd", mcfisa_a },
+{"movew", 2,	one(0042300),	one(0177770), "DsCd", mcfisa_a },
 {"movew", 4,	one(0042374),	one(0177777), "#wCd", mcfisa_a },
 {"movew", 2,	one(0043300),	one(0177700), ";wSd", m68000up },
-{"movew", 2,	one(0043300),	one(0177700), "DsSd", mcfisa_a },
+{"movew", 2,	one(0043300),	one(0177770), "DsSd", mcfisa_a },
 {"movew", 4,	one(0043374),	one(0177777), "#wSd", mcfisa_a },
 
 {"movel", 2,	one(0070000),	one(0170400), "MsDd", m68000up | mcfisa_a },
@@ -1678,9 +1678,9 @@ const struct m68k_opcode m68k_opcodes[] =
 {"msacw", 4,  	two(0xa000, 0x0300), two(0xf1b0, 0x0900), "uMumMh", mcfmac },
 {"msacw", 4,  	two(0xa000, 0x0100), two(0xf1b0, 0x0f00), "uMum", mcfmac },
 
-{"msacw", 4,  	two(0xa000, 0x0100), two(0xf100, 0x0900), "uMumiI4/RneG", mcfemac },/* Ry,Rx,SF,<ea>,accX.  */
-{"msacw", 4,  	two(0xa000, 0x0300), two(0xf100, 0x0900), "uMumMh4/RneG", mcfemac },/* Ry,Rx,+1/-1,<ea>,accX.  */
-{"msacw", 4,  	two(0xa000, 0x0100), two(0xf100, 0x0f00), "uMum4/RneG", mcfemac },/* Ry,Rx,<ea>,accX.  */
+{"msacw", 4,  	two(0xa000, 0x0100), two(0xf100, 0x0900), "uNuoiI4/RneG", mcfemac },/* Ry,Rx,SF,<ea>,accX.  */
+{"msacw", 4,  	two(0xa000, 0x0300), two(0xf100, 0x0900), "uNuoMh4/RneG", mcfemac },/* Ry,Rx,+1/-1,<ea>,accX.  */
+{"msacw", 4,  	two(0xa000, 0x0100), two(0xf100, 0x0f00), "uNuo4/RneG", mcfemac },/* Ry,Rx,<ea>,accX.  */
 {"msacw", 4,  	two(0xa000, 0x0100), two(0xf130, 0x0900), "uMumiIeH", mcfemac },/* Ry,Rx,SF,accX.  */
 {"msacw", 4,  	two(0xa000, 0x0300), two(0xf130, 0x0900), "uMumMheH", mcfemac },/* Ry,Rx,+1/-1,accX.  */
 {"msacw", 4,  	two(0xa000, 0x0100), two(0xf130, 0x0f00), "uMumeH", mcfemac }, /* Ry,Rx,accX.  */
