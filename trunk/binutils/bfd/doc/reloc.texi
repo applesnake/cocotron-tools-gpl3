@@ -612,6 +612,11 @@ Reloc types used for i960/b.out.
 @deffnx {} BFD_RELOC_SPARC_UA16
 @deffnx {} BFD_RELOC_SPARC_UA32
 @deffnx {} BFD_RELOC_SPARC_UA64
+@deffnx {} BFD_RELOC_SPARC_GOTDATA_HIX22
+@deffnx {} BFD_RELOC_SPARC_GOTDATA_LOX10
+@deffnx {} BFD_RELOC_SPARC_GOTDATA_OP_HIX22
+@deffnx {} BFD_RELOC_SPARC_GOTDATA_OP_LOX10
+@deffnx {} BFD_RELOC_SPARC_GOTDATA_OP
 SPARC ELF relocations.  There is probably some overlap with other
 relocation types already defined.
 @end deffn
@@ -805,6 +810,11 @@ High 16 bits of 32-bit pc-relative value, adjusted
 @deffn {} BFD_RELOC_LO16_PCREL
 Low 16 bits of pc-relative value
 @end deffn
+@deffn {} BFD_RELOC_MIPS16_GOT16
+@deffnx {} BFD_RELOC_MIPS16_CALL16
+Equivalent of BFD_RELOC_MIPS_*, but with the MIPS16 layout of
+16-bit immediate fields
+@end deffn
 @deffn {} BFD_RELOC_MIPS16_HI16
 MIPS16 high 16 bits of 32-bit value.
 @end deffn
@@ -858,7 +868,7 @@ MIPS ELF relocations.
 @end deffn
 @deffn {} BFD_RELOC_MIPS_COPY
 @deffnx {} BFD_RELOC_MIPS_JUMP_SLOT
-MIPS ELF relocations (VxWorks extensions).
+MIPS ELF relocations (VxWorks and PLT extensions).
 @end deffn
 @deffn {} BFD_RELOC_FRV_LABEL16
 @deffnx {} BFD_RELOC_FRV_LABEL24
@@ -927,6 +937,16 @@ Create PLT entry.
 @end deffn
 @deffn {} BFD_RELOC_MN10300_RELATIVE
 Adjust by program base.
+@end deffn
+@deffn {} BFD_RELOC_MN10300_SYM_DIFF
+Together with another reloc targeted at the same location,
+allows for a value that is the difference of two symbols
+in the same section.
+@end deffn
+@deffn {} BFD_RELOC_MN10300_ALIGN
+The addend of this reloc is an alignment power that must
+be honoured at the offset's location, regardless of linker
+relaxation.
 @end deffn
 @deffn {} BFD_RELOC_386_GOT32
 @deffnx {} BFD_RELOC_386_PLT32
@@ -1226,6 +1246,9 @@ ARM thread-local storage relocations.
 @deffnx {} BFD_RELOC_ARM_LDC_SB_G1
 @deffnx {} BFD_RELOC_ARM_LDC_SB_G2
 ARM group relocations.
+@end deffn
+@deffn {} BFD_RELOC_ARM_V4BX
+Annotation of BX instructions.
 @end deffn
 @deffn {} BFD_RELOC_ARM_IMMEDIATE
 @deffnx {} BFD_RELOC_ARM_ADRL_IMMEDIATE
@@ -2299,6 +2322,9 @@ NS CR16C Relocations.
 @deffnx {} BFD_RELOC_CR16_DISP20
 @deffnx {} BFD_RELOC_CR16_DISP24
 @deffnx {} BFD_RELOC_CR16_DISP24a
+@deffnx {} BFD_RELOC_CR16_SWITCH8
+@deffnx {} BFD_RELOC_CR16_SWITCH16
+@deffnx {} BFD_RELOC_CR16_SWITCH32
 NS CR16 Relocations.
 @end deffn
 @deffn {} BFD_RELOC_CRX_REL4
@@ -2538,6 +2564,15 @@ Xtensa relocation to mark that the linker should simplify
 assembler-expanded instructions.  This is commonly used
 internally by the linker after analysis of a
 BFD_RELOC_XTENSA_ASM_EXPAND.
+@end deffn
+@deffn {} BFD_RELOC_XTENSA_TLSDESC_FN
+@deffnx {} BFD_RELOC_XTENSA_TLSDESC_ARG
+@deffnx {} BFD_RELOC_XTENSA_TLS_DTPOFF
+@deffnx {} BFD_RELOC_XTENSA_TLS_TPOFF
+@deffnx {} BFD_RELOC_XTENSA_TLS_FUNC
+@deffnx {} BFD_RELOC_XTENSA_TLS_ARG
+@deffnx {} BFD_RELOC_XTENSA_TLS_CALL
+Xtensa TLS relocations.
 @end deffn
 @deffn {} BFD_RELOC_Z80_DISP8
 8 bit signed offset in (ix+d) or (iy+d).

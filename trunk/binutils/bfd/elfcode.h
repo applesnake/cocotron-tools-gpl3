@@ -1,6 +1,6 @@
 /* ELF executable support for BFD.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007
+   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
@@ -189,12 +189,14 @@ elf_swap_symbol_in (bfd *abfd,
   dst->st_info = H_GET_8 (abfd, src->st_info);
   dst->st_other = H_GET_8 (abfd, src->st_other);
   dst->st_shndx = H_GET_16 (abfd, src->st_shndx);
-  if (dst->st_shndx == SHN_XINDEX)
+  if (dst->st_shndx == (SHN_XINDEX & 0xffff))
     {
       if (shndx == NULL)
 	return FALSE;
       dst->st_shndx = H_GET_32 (abfd, shndx->est_shndx);
     }
+  else if (dst->st_shndx >= (SHN_LORESERVE & 0xffff))
+    dst->st_shndx += SHN_LORESERVE - (SHN_LORESERVE & 0xffff);
   return TRUE;
 }
 
@@ -215,12 +217,12 @@ elf_swap_symbol_out (bfd *abfd,
   H_PUT_8 (abfd, src->st_info, dst->st_info);
   H_PUT_8 (abfd, src->st_other, dst->st_other);
   tmp = src->st_shndx;
-  if (tmp > SHN_HIRESERVE)
+  if (tmp >= (SHN_LORESERVE & 0xffff) && tmp < SHN_LORESERVE)
     {
       if (shndx == NULL)
 	abort ();
       H_PUT_32 (abfd, tmp, shndx);
-      tmp = SHN_XINDEX;
+      tmp = SHN_XINDEX & 0xffff;
     }
   H_PUT_16 (abfd, tmp, dst->st_shndx);
 }
@@ -280,12 +282,12 @@ elf_swap_ehdr_out (bfd *abfd,
   H_PUT_16 (abfd, src->e_phnum, dst->e_phnum);
   H_PUT_16 (abfd, src->e_shentsize, dst->e_shentsize);
   tmp = src->e_shnum;
-  if (tmp >= SHN_LORESERVE)
+  if (tmp >= (SHN_LORESERVE & 0xffff))
     tmp = SHN_UNDEF;
   H_PUT_16 (abfd, tmp, dst->e_shnum);
   tmp = src->e_shstrndx;
-  if (tmp >= SHN_LORESERVE)
-    tmp = SHN_XINDEX;
+  if (tmp >= (SHN_LORESERVE & 0xffff))
+    tmp = SHN_XINDEX & 0xffff;
   H_PUT_16 (abfd, tmp, dst->e_shstrndx);
 }
 
@@ -370,11 +372,17 @@ elf_swap_phdr_out (bfd *abfd,
 		   const Elf_Internal_Phdr *src,
 		   Elf_External_Phdr *dst)
 {
+  const struct elf_backend_data *bed;
+  bfd_vma p_paddr;
+
+  bed = get_elf_backend_data (abfd);
+  p_paddr = bed->want_p_paddr_set_to_zero ? 0 : src->p_paddr;
+
   /* note that all elements of dst are *arrays of unsigned char* already...  */
   H_PUT_32 (abfd, src->p_type, dst->p_type);
   H_PUT_WORD (abfd, src->p_offset, dst->p_offset);
   H_PUT_WORD (abfd, src->p_vaddr, dst->p_vaddr);
-  H_PUT_WORD (abfd, src->p_paddr, dst->p_paddr);
+  H_PUT_WORD (abfd, p_paddr, dst->p_paddr);
   H_PUT_WORD (abfd, src->p_filesz, dst->p_filesz);
   H_PUT_WORD (abfd, src->p_memsz, dst->p_memsz);
   H_PUT_32 (abfd, src->p_flags, dst->p_flags);
@@ -462,25 +470,6 @@ elf_file_p (Elf_External_Ehdr *x_ehdrp)
 	  && (x_ehdrp->e_ident[EI_MAG1] == ELFMAG1)
 	  && (x_ehdrp->e_ident[EI_MAG2] == ELFMAG2)
 	  && (x_ehdrp->e_ident[EI_MAG3] == ELFMAG3));
-}
-
-/* Determines if a given section index is valid.  */
-
-static inline bfd_boolean
-valid_section_index_p (unsigned index, unsigned num_sections)
-{
-  /* Note: We allow SHN_UNDEF as a valid section index.  */
-  if (index < SHN_LORESERVE || index > SHN_HIRESERVE)
-    return index < num_sections;
-
-  /* We disallow the use of reserved indcies, except for those
-     with OS or Application specific meaning.  The test make use
-     of the knowledge that:
-       SHN_LORESERVE == SHN_LOPROC
-     and
-       SHN_HIPROC == SHN_LOOS - 1  */
-  /* XXX - Should we allow SHN_XINDEX as a valid index here ?  */
-  return (index >= SHN_LOPROC && index <= SHN_HIOS);
 }
 
 /* Check to see if the file associated with ABFD matches the target vector
@@ -585,6 +574,8 @@ elf_object_p (bfd *abfd)
     goto got_wrong_format_error;
 
   ebd = get_elf_backend_data (abfd);
+  if (ebd->s->arch_size != ARCH_SIZE)
+    goto got_wrong_format_error;
 
   /* Check that the ELF e_machine field matches what this particular
      BFD format expects.  */
@@ -606,6 +597,8 @@ elf_object_p (bfd *abfd)
 	  if ((*target_ptr)->flavour != bfd_target_elf_flavour)
 	    continue;
 	  back = xvec_get_elf_backend_data (*target_ptr);
+	  if (back->s->arch_size != ARCH_SIZE)
+	    continue;
 	  if (back->elf_machine_code == i_ehdrp->e_machine
 	      || (back->elf_machine_alt1 != 0
 		  && back->elf_machine_alt1 == i_ehdrp->e_machine)
@@ -701,7 +694,7 @@ elf_object_p (bfd *abfd)
 	}
 
       /* And similarly for the string table index.  */
-      if (i_ehdrp->e_shstrndx == SHN_XINDEX)
+      if (i_ehdrp->e_shstrndx == (SHN_XINDEX & 0xffff))
 	{
 	  i_ehdrp->e_shstrndx = i_shdr.sh_link;
 	  if (i_ehdrp->e_shstrndx != i_shdr.sh_link)
@@ -747,8 +740,6 @@ elf_object_p (bfd *abfd)
       if (!i_shdrp)
 	goto got_no_match;
       num_sec = i_ehdrp->e_shnum;
-      if (num_sec > SHN_LORESERVE)
-	num_sec += SHN_HIRESERVE + 1 - SHN_LORESERVE;
       elf_numsections (abfd) = num_sec;
       amt = sizeof (i_shdrp) * num_sec;
       elf_elfsections (abfd) = bfd_alloc (abfd, amt);
@@ -756,16 +747,7 @@ elf_object_p (bfd *abfd)
 	goto got_no_match;
 
       memcpy (i_shdrp, &i_shdr, sizeof (*i_shdrp));
-      shdrp = i_shdrp;
-      shindex = 0;
-      if (num_sec > SHN_LORESERVE)
-	{
-	  for ( ; shindex < SHN_LORESERVE; shindex++)
-	    elf_elfsections (abfd)[shindex] = shdrp++;
-	  for ( ; shindex < SHN_HIRESERVE + 1; shindex++)
-	    elf_elfsections (abfd)[shindex] = i_shdrp;
-	}
-      for ( ; shindex < num_sec; shindex++)
+      for (shdrp = i_shdrp, shindex = 0; shindex < num_sec; shindex++)
 	elf_elfsections (abfd)[shindex] = shdrp++;
 
       /* Read in the rest of the section header table and convert it
@@ -777,13 +759,13 @@ elf_object_p (bfd *abfd)
 	  elf_swap_shdr_in (abfd, &x_shdr, i_shdrp + shindex);
 
 	  /* Sanity check sh_link and sh_info.  */
-	  if (! valid_section_index_p (i_shdrp[shindex].sh_link, num_sec))
+	  if (i_shdrp[shindex].sh_link >= num_sec)
 	    goto got_wrong_format_error;
 
 	  if (((i_shdrp[shindex].sh_flags & SHF_INFO_LINK)
 	       || i_shdrp[shindex].sh_type == SHT_RELA
 	       || i_shdrp[shindex].sh_type == SHT_REL)
-	      && ! valid_section_index_p (i_shdrp[shindex].sh_info, num_sec))
+	      && i_shdrp[shindex].sh_info >= num_sec)
 	    goto got_wrong_format_error;
 
 	  /* If the section is loaded, but not page aligned, clear
@@ -801,7 +783,7 @@ elf_object_p (bfd *abfd)
   /* A further sanity check.  */
   if (i_ehdrp->e_shnum != 0)
     {
-      if (! valid_section_index_p (i_ehdrp->e_shstrndx, elf_numsections (abfd)))
+      if (i_ehdrp->e_shstrndx >= elf_numsections (abfd))
 	{
 	  /* PR 2257:
 	     We used to just goto got_wrong_format_error here
@@ -850,12 +832,8 @@ elf_object_p (bfd *abfd)
 	 a dummy placeholder entry, so we ignore it.  */
       num_sec = elf_numsections (abfd);
       for (shindex = 1; shindex < num_sec; shindex++)
-	{
-	  if (! bfd_section_from_shdr (abfd, shindex))
-	    goto got_no_match;
-	  if (shindex == SHN_LORESERVE - 1)
-	    shindex += SHN_HIRESERVE + 1 - SHN_LORESERVE;
-	}
+	if (!bfd_section_from_shdr (abfd, shindex))
+	  goto got_no_match;
 
       /* Set up ELF sections for SHF_GROUP and SHF_LINK_ORDER.  */
       if (! _bfd_elf_setup_sections (abfd))
@@ -1075,9 +1053,9 @@ elf_write_shdrs_and_ehdr (bfd *abfd)
 
   /* Some fields in the first section header handle overflow of ehdr
      fields.  */
-  if (i_ehdrp->e_shnum >= SHN_LORESERVE)
+  if (i_ehdrp->e_shnum >= (SHN_LORESERVE & 0xffff))
     i_shdrp[0]->sh_size = i_ehdrp->e_shnum;
-  if (i_ehdrp->e_shstrndx >= SHN_LORESERVE)
+  if (i_ehdrp->e_shstrndx >= (SHN_LORESERVE & 0xffff))
     i_shdrp[0]->sh_link = i_ehdrp->e_shstrndx;
 
   /* at this point we've concocted all the ELF sections...  */
@@ -1093,9 +1071,6 @@ elf_write_shdrs_and_ehdr (bfd *abfd)
       elf_debug_section (count, *i_shdrp);
 #endif
       elf_swap_shdr_out (abfd, *i_shdrp, x_shdrp + count);
-
-      if (count == SHN_LORESERVE - 1)
-	i_shdrp += SHN_HIRESERVE + 1 - SHN_LORESERVE;
     }
   if (bfd_seek (abfd, (file_ptr) i_ehdrp->e_shoff, SEEK_SET) != 0
       || bfd_bwrite (x_shdrp, amt, abfd) != amt)
@@ -1264,19 +1239,6 @@ elf_slurp_symbol_table (bfd *abfd, asymbol **symptrs, bfd_boolean dynamic)
 	    {
 	      sym->symbol.section = bfd_und_section_ptr;
 	    }
-	  else if (isym->st_shndx < SHN_LORESERVE
-		   || isym->st_shndx > SHN_HIRESERVE)
-	    {
-	      sym->symbol.section = bfd_section_from_elf_index (abfd,
-								isym->st_shndx);
-	      if (sym->symbol.section == NULL)
-		{
-		  /* This symbol is in a section for which we did not
-		     create a BFD section.  Just use bfd_abs_section,
-		     although it is wrong.  FIXME.  */
-		  sym->symbol.section = bfd_abs_section_ptr;
-		}
-	    }
 	  else if (isym->st_shndx == SHN_ABS)
 	    {
 	      sym->symbol.section = bfd_abs_section_ptr;
@@ -1291,7 +1253,17 @@ elf_slurp_symbol_table (bfd *abfd, asymbol **symptrs, bfd_boolean dynamic)
 	      sym->symbol.value = isym->st_size;
 	    }
 	  else
-	    sym->symbol.section = bfd_abs_section_ptr;
+	    {
+	      sym->symbol.section
+		= bfd_section_from_elf_index (abfd, isym->st_shndx);
+	      if (sym->symbol.section == NULL)
+		{
+		  /* This symbol is in a section for which we did not
+		     create a BFD section.  Just use bfd_abs_section,
+		     although it is wrong.  FIXME.  */
+		  sym->symbol.section = bfd_abs_section_ptr;
+		}
+	    }
 
 	  /* If this is a relocatable file, then the symbol value is
 	     already section relative.  */
@@ -1323,6 +1295,10 @@ elf_slurp_symbol_table (bfd *abfd, asymbol **symptrs, bfd_boolean dynamic)
 	    case STT_FUNC:
 	      sym->symbol.flags |= BSF_FUNCTION;
 	      break;
+	    case STT_COMMON:
+	      /* FIXME: Do we have to put the size field into the value field
+		 as we do with symbols in SHN_COMMON sections (see above) ?  */
+	      /* Fall through.  */
 	    case STT_OBJECT:
 	      sym->symbol.flags |= BSF_OBJECT;
 	      break;
@@ -1635,6 +1611,7 @@ NAME(_bfd_elf,bfd_from_remote_memory)
   int err;
   unsigned int i;
   bfd_vma loadbase;
+  bfd_boolean loadbase_set;
 
   /* Read in the ELF header in external format.  */
   err = target_read_memory (ehdr_vma, (bfd_byte *) &x_ehdr, sizeof x_ehdr);
@@ -1711,13 +1688,11 @@ NAME(_bfd_elf,bfd_from_remote_memory)
   contents_size = 0;
   last_phdr = NULL;
   loadbase = ehdr_vma;
+  loadbase_set = FALSE;
   for (i = 0; i < i_ehdr.e_phnum; ++i)
     {
       elf_swap_phdr_in (templ, &x_phdrs[i], &i_phdrs[i]);
-      /* IA-64 vDSO may have two mappings for one segment, where one mapping
-	 is executable only, and one is read only.  We must not use the
-	 executable one.  */
-      if (i_phdrs[i].p_type == PT_LOAD && (i_phdrs[i].p_flags & PF_R))
+      if (i_phdrs[i].p_type == PT_LOAD)
 	{
 	  bfd_vma segment_end;
 	  segment_end = (i_phdrs[i].p_offset + i_phdrs[i].p_filesz
@@ -1725,8 +1700,14 @@ NAME(_bfd_elf,bfd_from_remote_memory)
 	  if (segment_end > (bfd_vma) contents_size)
 	    contents_size = segment_end;
 
-	  if ((i_phdrs[i].p_offset & -i_phdrs[i].p_align) == 0)
-	    loadbase = ehdr_vma - (i_phdrs[i].p_vaddr & -i_phdrs[i].p_align);
+	  /* LOADADDR is the `Base address' from the gELF specification:
+	     `lowest p_vaddr value for a PT_LOAD segment' is P_VADDR from the
+	     first PT_LOAD as PT_LOADs are ordered by P_VADDR.  */
+	  if (!loadbase_set && (i_phdrs[i].p_offset & -i_phdrs[i].p_align) == 0)
+	    {
+	      loadbase = ehdr_vma - (i_phdrs[i].p_vaddr & -i_phdrs[i].p_align);
+	      loadbase_set = TRUE;
+	    }
 
 	  last_phdr = &i_phdrs[i];
 	}
@@ -1764,10 +1745,7 @@ NAME(_bfd_elf,bfd_from_remote_memory)
     }
 
   for (i = 0; i < i_ehdr.e_phnum; ++i)
-    /* IA-64 vDSO may have two mappings for one segment, where one mapping
-       is executable only, and one is read only.  We must not use the
-       executable one.  */
-    if (i_phdrs[i].p_type == PT_LOAD && (i_phdrs[i].p_flags & PF_R))
+    if (i_phdrs[i].p_type == PT_LOAD)
       {
 	bfd_vma start = i_phdrs[i].p_offset & -i_phdrs[i].p_align;
 	bfd_vma end = (i_phdrs[i].p_offset + i_phdrs[i].p_filesz

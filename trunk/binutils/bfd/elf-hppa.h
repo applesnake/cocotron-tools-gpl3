@@ -1,5 +1,5 @@
 /* Common code for PA ELF implementations.
-   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
+   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -745,6 +745,17 @@ elf_hppa_reloc_final_type (bfd *abfd,
 	    }
 	  break;
 
+	case 64:
+	  switch (field)
+	    {
+	    case e_fsel:
+	      final_type = R_PARISC_GPREL64;
+	      break;
+	    default:
+	      return R_PARISC_NONE;
+	    }
+	  break;
+
 	default:
 	  return R_PARISC_NONE;
 	}
@@ -930,9 +941,38 @@ elf_hppa_reloc_final_type (bfd *abfd,
 	}
       break;
 
+    case R_PARISC_SEGREL32:
+      switch (format)
+	{
+	case 32:
+	  switch (field)
+	    {
+	    case e_fsel:
+	      final_type = R_PARISC_SEGREL32;
+	      break;
+	    default:
+	      return R_PARISC_NONE;
+	    }
+	  break;
+
+	case 64:
+	  switch (field)
+	    {
+	    case e_fsel:
+	      final_type = R_PARISC_SEGREL64;
+	      break;
+	    default:
+	      return R_PARISC_NONE;
+	    }
+	  break;
+
+	default:
+	  return R_PARISC_NONE;
+	}
+      break;
+
     case R_PARISC_GNU_VTENTRY:
     case R_PARISC_GNU_VTINHERIT:
-    case R_PARISC_SEGREL32:
     case R_PARISC_SEGBASE:
       /* The defaults are fine for these cases.  */
       break;
@@ -1193,7 +1233,7 @@ elf_hppa_add_symbol_hook (bfd *abfd,
 			  asection **secp,
 			  bfd_vma *valp)
 {
-  int index = sym->st_shndx;
+  unsigned int index = sym->st_shndx;
 
   switch (index)
     {
@@ -1300,25 +1340,32 @@ elf_hppa_is_dynamic_loader_symbol (const char *name)
 
 /* Record the lowest address for the data and text segments.  */
 static void
-elf_hppa_record_segment_addrs (bfd *abfd ATTRIBUTE_UNUSED,
+elf_hppa_record_segment_addrs (bfd *abfd,
 			       asection *section,
 			       void *data)
 {
-  struct elf64_hppa_link_hash_table *hppa_info;
-  bfd_vma value;
+  struct elf64_hppa_link_hash_table *hppa_info = data;
 
-  hppa_info = data;
+  if ((section->flags & (SEC_ALLOC | SEC_LOAD)) == (SEC_ALLOC | SEC_LOAD))
+    {
+      bfd_vma value;
+      Elf_Internal_Phdr *p;
 
-  value = section->vma - section->filepos;
+      p = _bfd_elf_find_segment_containing_section (abfd, section->output_section);
+      BFD_ASSERT (p != NULL);
+      value = p->p_vaddr;
 
-  if (((section->flags & (SEC_ALLOC | SEC_LOAD | SEC_READONLY))
-       == (SEC_ALLOC | SEC_LOAD | SEC_READONLY))
-      && value < hppa_info->text_segment_base)
-    hppa_info->text_segment_base = value;
-  else if (((section->flags & (SEC_ALLOC | SEC_LOAD | SEC_READONLY))
-	    == (SEC_ALLOC | SEC_LOAD))
-	   && value < hppa_info->data_segment_base)
-    hppa_info->data_segment_base = value;
+      if (section->flags & SEC_READONLY)
+	{
+	  if (value < hppa_info->text_segment_base)
+	    hppa_info->text_segment_base = value;
+	}
+      else
+	{
+	  if (value < hppa_info->data_segment_base)
+	    hppa_info->data_segment_base = value;
+	}
+    }
 }
 
 /* Called after we have seen all the input files/sections, but before
