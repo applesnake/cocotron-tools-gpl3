@@ -1,5 +1,5 @@
 /* resrc.c -- read and write Windows rc files.
-   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2007
+   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2007, 2008
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
    Rewritten by Kai Tietz, Onevision.
@@ -436,41 +436,48 @@ read_rc_file (const char *filename, const char *preprocessor,
   char *cmd;
   const char *fnquotes = (filename_need_quotes (filename) ? "\"" : "");
 
+  if (filename == NULL)
+    filename = "-";
   /* Setup the default resource import path taken from input file.  */
-  if (strchr (filename, '/') != NULL || strchr (filename, '\\') != NULL)
+  else if (strchr (filename, '/') != NULL || strchr (filename, '\\') != NULL)
     {
-      char *e, *c;
+      char *edit, *dir;
 
       if (filename[0] == '/'
 	  || filename[0] == '\\'
 	  || filename[1] == ':')
-	e = c = xstrdup (filename);
+        /* Absolute path.  */
+	edit = dir = xstrdup (filename);
       else
 	{
-	  e = c = xmalloc (strlen (filename) + 3);
-	  sprintf (c, "./%s", filename);
+	  /* Relative path.  */
+	  edit = dir = xmalloc (strlen (filename) + 3);
+	  sprintf (dir, "./%s", filename);
 	}
-      e += strlen (c);
-      while (e > c && (e[-1] != '\\' && e[-1] != '/'))
-	{
-	  --e;
-	  e[0] = 0;
-	}
-      /* Cut off trailing slash.  */
-      --e;
-      e[0] = 0;
-      while ((e = strchr (c, '\\')) != NULL)
-	*e = '/';
 
-      windres_add_include_dir (e);
+      /* Walk dir backwards stopping at the first directory separator.  */
+      edit += strlen (dir);
+      while (edit > dir && (edit[-1] != '\\' && edit[-1] != '/'))
+	{
+	  --edit;
+	  edit[0] = 0;
+	}
+
+      /* Cut off trailing slash.  */
+      --edit;
+      edit[0] = 0;
+
+      /* Convert all back slashes to forward slashes.  */
+      while ((edit = strchr (dir, '\\')) != NULL)
+	*edit = '/';
+
+      windres_add_include_dir (dir);
     }
 
   istream_type = (use_temp_file) ? ISTREAM_FILE : ISTREAM_PIPE;
 
   if (preprocargs == NULL)
     preprocargs = "";
-  if (filename == NULL)
-    filename = "-";
 
   if (preprocessor)
     {
@@ -588,7 +595,19 @@ close_input_stream (void)
   else
     {
       if (cpp_pipe != NULL)
-	pclose (cpp_pipe);
+        {
+	  int err;
+	  err = pclose (cpp_pipe);
+	  /* We are reading from a pipe, therefore we don't
+             know if cpp failed or succeeded until pclose.  */
+	  if (err != 0 || errno == ECHILD)
+	    {
+	      /* Since this is also run via xatexit, safeguard.  */
+	      cpp_pipe = NULL;
+	      cpp_temp_file = NULL;
+	      fatal (_("preprocessing failed."));
+	    }
+        }
     }
 
   /* Since this is also run via xatexit, safeguard.  */
@@ -666,7 +685,8 @@ get_data (FILE *e, bfd_byte *p, rc_uint_type c, const char *msg)
   if (got == c)
     return;
 
-  fatal (_("%s: read of %lu returned %lu"), msg, (long) c, (long) got);
+  fatal (_("%s: read of %lu returned %lu"),
+	 msg, (unsigned long) c, (unsigned long) got);
 }
 
 /* Define an accelerator resource.  */
@@ -3042,10 +3062,10 @@ write_rc_datablock (FILE *e, rc_uint_type length, const bfd_byte *data, int has_
 		      {
 	      if (k == 0)
 		plen  = fprintf (e, "0x%lxL",
-				 (long) windres_get_32 (&wrtarget, data + i, length - i));
+				 (unsigned long) windres_get_32 (&wrtarget, data + i, length - i));
 			else
 		plen = fprintf (e, " 0x%lxL",
-				(long) windres_get_32 (&wrtarget, data + i, length - i)) - 1;
+				(unsigned long) windres_get_32 (&wrtarget, data + i, length - i)) - 1;
 	      if (has_next || (i + 4) < length)
 			  {
 		  if (plen>0 && plen < 11)
@@ -3191,7 +3211,7 @@ write_rc_stringtable (FILE *e, const rc_res_id *name,
     {
       if (stringtable->strings[i].length != 0)
 	{
-	  fprintf (e, "  %lu, ", (long) offset + i);
+	  fprintf (e, "  %lu, ", (unsigned long) offset + i);
 	  unicode_print_quoted (e, stringtable->strings[i].string,
 			 stringtable->strings[i].length);
 	  fprintf (e, "\n");

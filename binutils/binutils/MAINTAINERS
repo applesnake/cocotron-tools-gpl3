@@ -36,7 +36,7 @@ repository without obtaining approval first:
   Richard Henderson <rth@redhat.com>
   Ian Lance Taylor <ian@airs.com>
   Jeff Law <law@redhat.com>
-  Jim Wilson <wilson@specifixinc.com>
+  Jim Wilson <wilson@tuliptree.org>
   DJ Delorie <dj@redhat.com>
   Alan Modra <amodra@bigpond.net.au>
   Michael Meissner <gnu@the-meissners.org>
@@ -66,8 +66,9 @@ responsibility among the other maintainers.
   BFIN		   Bernd Schmidt <bernd.schmidt@analog.com>
   BUILD SYSTEM	   Ben Elliston <bje@gnu.org>
   BUILD SYSTEM	   Daniel Jacobowitz <dan@debian.org>
+  CR16		   M R Swami Reddy <MR.Swami.Reddy@nsc.com>
   CRIS		   Hans-Peter Nilsson <hp@axis.com>
-  CRX		   Tomer Levi <Tomer.Levi@nsc.com>
+  CRX		   M R Swami Reddy <MR.Swami.Reddy@nsc.com>
   DLX              Nikolaos Kavvadias <nkavv@physics.auth.gr>
   DWARF2	   Jason Merrill <jason@redhat.com>
   FR30		   Dave Brolley <brolley@redhat.com>
@@ -77,16 +78,14 @@ responsibility among the other maintainers.
   HPPA		   Dave Anglin <dave.anglin@nrc.ca>
   HPPA elf32	   Alan Modra <amodra@bigpond.net.au>
   HPPA elf64	   Jeff Law <law@redhat.com> [Basic maintainance only]
-  IA-64		   Jim Wilson <wilson@specifixinc.com>
+  IA-64		   Jim Wilson <wilson@tuliptree.org>
   IQ2000	   Stan Cox <scox@redhat.com>
   i860		   Jason Eckhardt <jle@rice.edu>
-  ix86		   Alan Modra <amodra@bigpond.net.au>
+  ix86		   H.J. Lu <hjl.tools@gmail.com>
   ix86 PE	   Christopher Faylor <me+binutils@cgf.cx>
   ix86 COFF	   DJ Delorie <dj@redhat.com>
-  ix86		   H.J. Lu <hjl@gnu.org>
   ix86 INTEL MODE  Jan Beulich <jbeulich@novell.com>
   M68HC11 M68HC12  Stephane Carrez <stcarrez@nerim.fr>
-  M68k		   Ben Elliston <bje@gnu.org>
   M88k		   Mark Kettenis <kettenis@gnu.org>
   MAXQ		   Inderpreet Singh <inderpreetb@noida.hcltech.com>
   MEP		   Dave Brolley <brolley@redhat.com>
@@ -105,6 +104,7 @@ responsibility among the other maintainers.
   SH		   Alexandre Oliva <aoliva@redhat.com>
   SH		   Kaz Kojima <kkojima@rr.iij4u.or.jp>
   SPARC		   Jakub Jelinek <jakub@redhat.com>
+  SPU		   Alan Modra <amodra@bigpond.net.au>
   TESTSUITES	   Ben Elliston <bje@gnu.org>
   TIC4X            Svein Seldal <svein@dev.seldal.com>
   TIC54X           Timothy Wall <twall@alum.mit.edu>
@@ -112,7 +112,7 @@ responsibility among the other maintainers.
   VAX		   Jan-Benedict Glaw <jbglaw@lug-owl.de>
   x86_64	   Jan Hubicka <jh@suse.cz>
   x86_64	   Andreas Jaeger <aj@suse.de>
-  x86_64	   H.J. Lu <hjl@gnu.org>
+  x86_64	   H.J. Lu <hjl.tools@gmail.com>
   Xtensa	   Bob Wilson <bob.wilson@acm.org>
   z80		   Arnold Metselaar <arnold.metselaar@planet.nl>
   z8k		   Christian Groessler <chris@groessler.org>
@@ -212,7 +212,7 @@ choice of branch name would be:
 
   binutils-tgc-fm
 
-A data stamp is not required as part of the name field, but some
+A date stamp is not required as part of the name field, but some
 organizations like to have one.  If you do include the date, you
 should follow these rules:
 

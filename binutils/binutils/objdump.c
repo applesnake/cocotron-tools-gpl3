@@ -1,6 +1,6 @@
 /* objdump.c -- dump information about an object file.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -52,6 +52,7 @@
 
 #include "sysdep.h"
 #include "bfd.h"
+#include "elf-bfd.h"
 #include "progress.h"
 #include "bucomm.h"
 #include "dwarf.h"
@@ -109,6 +110,7 @@ static int dump_debugging_tags;		/* --debugging-tags */
 static int dump_special_syms = 0;	/* --special-syms */
 static bfd_vma adjust_section_vma = 0;	/* --adjust-vma */
 static int file_start_context = 0;      /* --file-start-context */
+static bfd_boolean display_file_offsets;/* -F */
 
 /* Pointer to an array of section names provided by
    one or more "-j secname" command line options.  */
@@ -171,6 +173,8 @@ static bfd_size_type stab_size;
 
 static char *strtab;
 static bfd_size_type stabstr_size;
+
+static bfd_boolean is_relocatable = FALSE;
 
 static void
 usage (FILE *stream, int status)
@@ -214,6 +218,7 @@ usage (FILE *stream, int status)
       --file-start-context       Include context from start of file (with -S)\n\
   -I, --include=DIR              Add DIR to search list for source files\n\
   -l, --line-numbers             Include line numbers and filenames in output\n\
+  -F, --file-offsets             Include file offsets when displaying information\n\
   -C, --demangle[=STYLE]         Decode mangled/processed symbol names\n\
                                   The STYLE, if specified, can be `auto', `gnu',\n\
                                   `lucid', `arm', `hp', `edg', `gnu-v3', `java'\n\
@@ -264,6 +269,7 @@ static struct option long_options[]=
   {"dynamic-syms", no_argument, NULL, 'T'},
   {"endian", required_argument, NULL, OPTION_ENDIAN},
   {"file-headers", no_argument, NULL, 'f'},
+  {"file-offsets", no_argument, NULL, 'F'},
   {"file-start-context", no_argument, &file_start_context, 1},
   {"full-contents", no_argument, NULL, 's'},
   {"headers", no_argument, NULL, 'h'},
@@ -734,6 +740,27 @@ find_symbol_for_address (bfd_vma vma,
 	     == bfd_asymbol_value (sorted_syms[thisplace - 1])))
     --thisplace;
 
+  /* Prefer a symbol in the current section if we have multple symbols
+     with the same value, as can occur with overlays or zero size
+     sections.  */
+  min = thisplace;
+  while (min < max
+	 && (bfd_asymbol_value (sorted_syms[min])
+	     == bfd_asymbol_value (sorted_syms[thisplace])))
+    {
+      if (sorted_syms[min]->section == sec
+	  && info->symbol_is_valid (sorted_syms[min], info))
+	{
+	  thisplace = min;
+
+	  if (place != NULL)
+	    *place = thisplace;
+
+	  return sorted_syms[thisplace];
+	}
+      ++min;
+    }
+
   /* If the file is relocatable, and the symbol could be from this
      section, prefer a symbol from this section over symbols from
      others, even if the other symbol's value might be closer.
@@ -753,19 +780,9 @@ find_symbol_for_address (bfd_vma vma,
       || !info->symbol_is_valid (sorted_syms[thisplace], info))
     {
       long i;
-      long newplace;
+      long newplace = sorted_symcount;
 
-      for (i = thisplace + 1; i < sorted_symcount; i++)
-	{
-	  if (bfd_asymbol_value (sorted_syms[i])
-	      != bfd_asymbol_value (sorted_syms[thisplace]))
-	    break;
-	}
-
-      --i;
-      newplace = sorted_symcount;
-
-      for (; i >= 0; i--)
+      for (i = min - 1; i >= 0; i--)
 	{
 	  if ((sorted_syms[i]->section == sec || !want_section)
 	      && info->symbol_is_valid (sorted_syms[i], info))
@@ -856,6 +873,10 @@ objdump_print_addr_with_sym (bfd *abfd, asection *sec, asymbol *sym,
 	}
       (*info->fprintf_func) (info->stream, ">");
     }
+
+  if (display_file_offsets)
+    info->fprintf_func (info->stream, _(" (File Offset: 0x%lx)"),
+			(long int)(sec->filepos + (vma - sec->vma)));
 }
 
 /* Print an address (VMA), symbolically if possible.
@@ -867,17 +888,21 @@ objdump_print_addr (bfd_vma vma,
 		    bfd_boolean skip_zeroes)
 {
   struct objdump_disasm_info *aux;
-  asymbol *sym = NULL; /* Initialize to avoid compiler warning.  */
+  asymbol *sym = NULL;
   bfd_boolean skip_find = FALSE;
+
+  aux = (struct objdump_disasm_info *) info->application_data;
 
   if (sorted_symcount < 1)
     {
       (*info->fprintf_func) (info->stream, "0x");
       objdump_print_value (vma, info, skip_zeroes);
+
+      if (display_file_offsets)
+	info->fprintf_func (info->stream, _(" (File Offset: 0x%lx)"),
+			    (long int)(aux->sec->filepos + (vma - aux->sec->vma)));
       return;
     }
-
-  aux = (struct objdump_disasm_info *) info->application_data;
 
   if (aux->reloc != NULL
       && aux->reloc->sym_ptr_ptr != NULL
@@ -950,7 +975,7 @@ static struct print_file_list *print_files;
 
 #define SHOW_PRECEDING_CONTEXT_LINES (5)
 
-/* Read a complete file into memory. */
+/* Read a complete file into memory.  */
 
 static const char *
 slurp_file (const char *fn, size_t *size)
@@ -961,7 +986,7 @@ slurp_file (const char *fn, size_t *size)
 #endif
   const char *map;
   struct stat st;
-  int fd = open (fn, O_RDONLY);
+  int fd = open (fn, O_RDONLY | O_BINARY);
 
   if (fd < 0)
     return NULL;
@@ -1130,14 +1155,17 @@ static void
 print_line (struct print_file_list *p, unsigned int line)
 {
   const char *l;
+  size_t len;
  
   --line; 
   if (line >= p->maxline)
     return;
   l = p->linemap [line];
-  fwrite (l, 1, strcspn (l, "\n\r"), stdout);
-  putchar ('\n');
-} 
+  /* Test fwrite return value to quiet glibc warning.  */
+  len = strcspn (l, "\n\r");
+  if (len == 0 || fwrite (l, len, 1, stdout) == 1)
+    putchar ('\n');
+}
 
 /* Print a range of source code lines. */
 
@@ -1385,8 +1413,6 @@ disassemble_bytes (struct disassemble_info * info,
 	      || (z == stop_offset * opb &&
 		  z - addr_offset * opb < skip_zeroes_at_end)))
 	{
-	  printf ("\t...\n");
-
 	  /* If there are more nonzero octets to follow, we only skip
 	     zeroes in multiples of 4, to try to avoid running over
 	     the start of an instruction which happens to start with
@@ -1395,6 +1421,17 @@ disassemble_bytes (struct disassemble_info * info,
 	    z = addr_offset * opb + ((z - addr_offset * opb) &~ 3);
 
 	  octets = z - addr_offset * opb;
+
+	  /* If we are going to display more data, and we are displaying
+	     file offsets, then tell the user how many zeroes we skip
+	     and the file offset from where we resume dumping.  */
+	  if (display_file_offsets && ((addr_offset + (octets / opb)) < stop_offset))
+	    printf ("\t... (skipping %d zeroes, resuming at file offset: 0x%lx)\n",
+		    octets / opb,
+		    (unsigned long) (section->filepos
+				     + (addr_offset + (octets / opb))));
+	  else
+	    printf ("\t...\n");
 	}
       else
 	{
@@ -1777,7 +1814,8 @@ disassemble_section (bfd *abfd, asection *section, void *info)
 	 && (*rel_pp)->address < rel_offset + addr_offset)
     ++rel_pp;
 
-  printf (_("Disassembly of section %s:\n"), section->name);
+  if (addr_offset < stop_offset)
+    printf (_("\nDisassembly of section %s:\n"), section->name);
 
   /* Find the nearest symbol forwards from our current position.  */
   paux->require_sec = TRUE;
@@ -2025,15 +2063,25 @@ load_debug_section (enum dwarf_section_display_enum debug, void *file)
   bfd *abfd = file;
   asection *sec;
   bfd_boolean ret;
+  int section_is_compressed;
 
   /* If it is already loaded, do nothing.  */
   if (section->start != NULL)
     return 1;
 
   /* Locate the debug section.  */
-  sec = bfd_get_section_by_name (abfd, section->name);
+  sec = bfd_get_section_by_name (abfd, section->uncompressed_name);
+  if (sec != NULL)
+    section->name = section->uncompressed_name;
+  else
+    {
+      sec = bfd_get_section_by_name (abfd, section->compressed_name);
+      if (sec != NULL)
+	section->name = section->compressed_name;
+    }
   if (sec == NULL)
     return 0;
+  section_is_compressed = section->name == section->compressed_name;
 
   /* Compute a bias to be added to offsets found within the DWARF debug
      information.  These offsets are meant to be relative to the start of
@@ -2060,11 +2108,24 @@ load_debug_section (enum dwarf_section_display_enum debug, void *file)
     ret = bfd_get_section_contents (abfd, sec, section->start, 0,
 				    section->size);
 
-  if (!ret)
+  if (! ret)
     {
       free_debug_section (debug);
       printf (_("\nCan't get contents for section '%s'.\n"),
 	      section->name);
+      return 0;
+    }
+
+  if (section_is_compressed)
+    {
+      bfd_size_type size = section->size;
+      if (! bfd_uncompress_section_contents (&section->start, &size))
+        {
+          free_debug_section (debug);
+          printf (_("\nCan't uncompress section '%s'.\n"), section->name);
+          return 0;
+        }
+      section->size = size;
     }
 
   return ret;
@@ -2098,15 +2159,16 @@ dump_dwarf_section (bfd *abfd, asection *section,
     match = name;
 
   for (i = 0; i < max; i++)
-    if (strcmp (debug_displays[i].section.name, match) == 0)
+    if (strcmp (debug_displays [i].section.uncompressed_name, match) == 0
+        || strcmp (debug_displays [i].section.compressed_name, match) == 0)
       {
-	if (!debug_displays[i].eh_frame)
+	if (!debug_displays [i].eh_frame)
 	  {
 	    struct dwarf_section *sec = &debug_displays [i].section;
 
 	    if (load_debug_section (i, abfd))
 	      {
-		debug_displays[i].display (sec, abfd);
+		debug_displays [i].display (sec, abfd);
 
 		if (i != info && i != abbrev)
 		  free_debug_section (i);
@@ -2116,7 +2178,7 @@ dump_dwarf_section (bfd *abfd, asection *section,
       }
 }
 
-static const char *mach_o_dwarf_sections [] = {
+static const char *mach_o_uncompressed_dwarf_sections [] = {
   "LC_SEGMENT.__DWARFA.__debug_abbrev",		/* .debug_abbrev */
   "LC_SEGMENT.__DWARFA.__debug_aranges",	/* .debug_aranges */
   "LC_SEGMENT.__DWARFA.__debug_frame",		/* .debug_frame */
@@ -2135,7 +2197,27 @@ static const char *mach_o_dwarf_sections [] = {
   "LC_SEGMENT.__DWARFA.__debug_weaknames"	/* .debug_weaknames */
 };
 
-static const char *generic_dwarf_sections [max];
+static const char *mach_o_compressed_dwarf_sections [] = {
+  "LC_SEGMENT.__DWARFA.__zdebug_abbrev",	/* .zdebug_abbrev */
+  "LC_SEGMENT.__DWARFA.__zdebug_aranges",	/* .zdebug_aranges */
+  "LC_SEGMENT.__DWARFA.__zdebug_frame",		/* .zdebug_frame */
+  "LC_SEGMENT.__DWARFA.__zdebug_info",		/* .zdebug_info */
+  "LC_SEGMENT.__DWARFA.__zdebug_line",		/* .zdebug_line */
+  "LC_SEGMENT.__DWARFA.__zdebug_pubnames",	/* .zdebug_pubnames */
+  ".eh_frame",					/* .eh_frame */
+  "LC_SEGMENT.__DWARFA.__zdebug_macinfo",	/* .zdebug_macinfo */
+  "LC_SEGMENT.__DWARFA.__zdebug_str",		/* .zdebug_str */
+  "LC_SEGMENT.__DWARFA.__zdebug_loc",		/* .zdebug_loc */
+  "LC_SEGMENT.__DWARFA.__zdebug_pubtypes",	/* .zdebug_pubtypes */
+  "LC_SEGMENT.__DWARFA.__zdebug_ranges",	/* .zdebug_ranges */
+  "LC_SEGMENT.__DWARFA.__zdebug_static_func",	/* .zdebug_static_func */
+  "LC_SEGMENT.__DWARFA.__zdebug_static_vars",	/* .zdebug_static_vars */
+  "LC_SEGMENT.__DWARFA.__zdebug_types",		/* .zdebug_types */
+  "LC_SEGMENT.__DWARFA.__zdebug_weaknames"	/* .zdebug_weaknames */
+};
+
+static const char *generic_uncompressed_dwarf_sections [max];
+static const char *generic_compressed_dwarf_sections [max];
 
 static void
 check_mach_o_dwarf (bfd *abfd)
@@ -2144,18 +2226,33 @@ check_mach_o_dwarf (bfd *abfd)
   enum bfd_flavour current_flavour = bfd_get_flavour (abfd);
   enum dwarf_section_display_enum i;
 
-  if (generic_dwarf_sections [0] == NULL)
+  if (generic_uncompressed_dwarf_sections [0] == NULL)
     for (i = 0; i < max; i++)
-      generic_dwarf_sections [i] = debug_displays[i].section.name;
+      {
+        generic_uncompressed_dwarf_sections [i]
+            = debug_displays[i].section.uncompressed_name;
+        generic_compressed_dwarf_sections [i]
+            = debug_displays[i].section.compressed_name;
+      }
 
   if (old_flavour != current_flavour)
     {
       if (current_flavour == bfd_target_mach_o_flavour)
 	for (i = 0; i < max; i++)
-	  debug_displays[i].section.name = mach_o_dwarf_sections [i];
+          {
+            debug_displays[i].section.uncompressed_name
+                = mach_o_uncompressed_dwarf_sections [i];
+            debug_displays[i].section.compressed_name
+                = mach_o_compressed_dwarf_sections [i];
+          }
       else if (old_flavour == bfd_target_mach_o_flavour)
 	for (i = 0; i < max; i++)
-	  debug_displays[i].section.name = generic_dwarf_sections [i];
+          {
+            debug_displays[i].section.uncompressed_name
+                = generic_uncompressed_dwarf_sections [i];
+            debug_displays[i].section.compressed_name
+                = generic_compressed_dwarf_sections [i];
+          }
 
       old_flavour = current_flavour;
     }
@@ -2180,6 +2277,12 @@ dump_dwarf (bfd *abfd)
     abort ();
 
   check_mach_o_dwarf (abfd);
+
+  if (bfd_get_flavour (abfd) == bfd_target_elf_flavour)
+    {
+      const struct elf_backend_data *bed = get_elf_backend_data (abfd);
+      init_dwarf_regnames (bed->elf_machine_code);
+    }
 
   bfd_map_over_sections (abfd, dump_dwarf_section, NULL);
 
@@ -2371,6 +2474,10 @@ dump_stabs (bfd *abfd)
   dump_stabs_section (abfd, ".stab", ".stabstr");
   dump_stabs_section (abfd, ".stab.excl", ".stab.exclstr");
   dump_stabs_section (abfd, ".stab.index", ".stab.indexstr");
+
+  /* For Darwin.  */
+  dump_stabs_section (abfd, "LC_SYMTAB.stabs", "LC_SYMTAB.stabstr");
+
   dump_stabs_section (abfd, "$GDB_SYMBOLS$", "$GDB_STRINGS$");
 }
 
@@ -2436,12 +2543,6 @@ dump_section (bfd *abfd, asection *section, void *dummy ATTRIBUTE_UNUSED)
   if ((datasize = bfd_section_size (abfd, section)) == 0)
     return;
 
-  printf (_("Contents of section %s:\n"), section->name);
-
-  data = xmalloc (datasize);
-
-  bfd_get_section_contents (abfd, section, data, 0, datasize);
-
   /* Compute the address range to display.  */
   if (start_address == (bfd_vma) -1
       || start_address < section->vma)
@@ -2461,6 +2562,19 @@ dump_section (bfd *abfd, asection *section, void *dummy ATTRIBUTE_UNUSED)
       if (stop_offset > datasize / opb)
 	stop_offset = datasize / opb;
     }
+
+  if (start_offset >= stop_offset)
+    return;
+  
+  printf (_("Contents of section %s:"), section->name);
+  if (display_file_offsets)
+    printf (_("  (Starting at file offset: 0x%lx)"),
+	    (unsigned long) (section->filepos + start_offset));
+  printf ("\n");
+
+  data = xmalloc (datasize);
+
+  bfd_get_section_contents (abfd, section, data, 0, datasize);
 
   width = 4;
 
@@ -2899,7 +3013,7 @@ dump_bfd (bfd *abfd)
     {
       void *dhandle;
 
-      dhandle = read_debugging_info (abfd, syms, symcount);
+      dhandle = read_debugging_info (abfd, syms, symcount, TRUE);
       if (dhandle != NULL)
 	{
 	  if (!print_debugging_info (stdout, dhandle, abfd, syms,
@@ -2910,6 +3024,12 @@ dump_bfd (bfd *abfd)
 			 bfd_get_filename (abfd));
 	      exit_status = 1;
 	    }
+	}
+      /* PR 6483: If there was no STABS or IEEE debug
+	 info in the file, try DWARF instead.  */
+      else if (! dump_dwarf_section_info)
+	{
+	  dump_dwarf (abfd);
 	}
     }
 
@@ -3056,7 +3176,7 @@ main (int argc, char **argv)
   bfd_init ();
   set_default_bfd_target ();
 
-  while ((c = getopt_long (argc, argv, "pib:m:M:VvCdDlfaHhrRtTxsSI:j:wE:zgeGW",
+  while ((c = getopt_long (argc, argv, "pib:m:M:VvCdDlfFaHhrRtTxsSI:j:wE:zgeGW",
 			   long_options, (int *) 0))
 	 != EOF)
     {
@@ -3071,7 +3191,7 @@ main (int argc, char **argv)
 	  if (disassembler_options)
 	    /* Ignore potential memory leak for now.  */
 	    disassembler_options = concat (disassembler_options, ",",
-					   optarg, NULL);
+					   optarg, (const char *) NULL);
 	  else
 	    disassembler_options = optarg;
 	  break;
@@ -3082,6 +3202,9 @@ main (int argc, char **argv)
 	      only = xrealloc (only, only_size * sizeof (char *));
 	    }
 	  only [only_used++] = optarg;
+	  break;
+	case 'F':
+	  display_file_offsets = TRUE;
 	  break;
 	case 'l':
 	  with_line_numbers = TRUE;
@@ -3111,9 +3234,13 @@ main (int argc, char **argv)
 	  break;
 	case OPTION_START_ADDRESS:
 	  start_address = parse_vma (optarg, "--start-address");
+	  if ((stop_address != (bfd_vma) -1) && stop_address <= start_address)
+	    fatal (_("error: the start address should be before the end address"));
 	  break;
 	case OPTION_STOP_ADDRESS:
 	  stop_address = parse_vma (optarg, "--stop-address");
+	  if ((start_address != (bfd_vma) -1) && stop_address <= start_address)
+	    fatal (_("error: the stop address should be after the start address"));
 	  break;
 	case 'E':
 	  if (strcmp (optarg, "B") == 0)

@@ -25,11 +25,11 @@
 ..
 .\" Set up some character translations and predefined strings.  \*(-- will
 .\" give an unbreakable dash, \*(PI will give pi, \*(L" will give a left
-.\" double quote, and \*(R" will give a right double quote.  \*(C+ will
-.\" give a nicer C++.  Capital omega is used to do unbreakable dashes and
-.\" therefore won't be available.  \*(C` and \*(C' expand to `' in nroff,
-.\" nothing in troff, for use with C<>.
-.tr \(*W-
+.\" double quote, and \*(R" will give a right double quote.  | will give a
+.\" real vertical bar.  \*(C+ will give a nicer C++.  Capital omega is used to
+.\" do unbreakable dashes and therefore won't be available.  \*(C` and \*(C'
+.\" expand to `' in nroff, nothing in troff, for use with C<>.
+.tr \(*W-|\(bv\*(Tr
 .ds C+ C\v'-.1v'\h'-1p'\s-2+\h'-1p'+\s0\v'.1v'\h'-1p'
 .ie n \{\
 .    ds -- \(*W-
@@ -128,7 +128,7 @@
 .\" ========================================================================
 .\"
 .IX Title "NM 1"
-.TH NM 1 "2007-08-06" "binutils-2.17.90" "GNU Development Tools"
+.TH NM 1 "2008-09-10" "binutils-2.18.90" "GNU Development Tools"
 .SH "NAME"
 nm \- list symbols from object files
 .SH "SYNOPSIS"
@@ -166,6 +166,11 @@ linking.
 .ie n .IP """B""" 4
 .el .IP "\f(CWB\fR" 4
 .IX Item "B"
+.PD 0
+.ie n .IP """b""" 4
+.el .IP "\f(CWb\fR" 4
+.IX Item "b"
+.PD
 The symbol is in the uninitialized data section (known as \s-1BSS\s0).
 .ie n .IP """C""" 4
 .el .IP "\f(CWC\fR" 4
@@ -177,10 +182,20 @@ references.
 .ie n .IP """D""" 4
 .el .IP "\f(CWD\fR" 4
 .IX Item "D"
+.PD 0
+.ie n .IP """d""" 4
+.el .IP "\f(CWd\fR" 4
+.IX Item "d"
+.PD
 The symbol is in the initialized data section.
 .ie n .IP """G""" 4
 .el .IP "\f(CWG\fR" 4
 .IX Item "G"
+.PD 0
+.ie n .IP """g""" 4
+.el .IP "\f(CWg\fR" 4
+.IX Item "g"
+.PD
 The symbol is in an initialized data section for small objects.  Some
 object file formats permit more efficient access to small data objects,
 such as a global int variable as opposed to a large global array.
@@ -189,21 +204,44 @@ such as a global int variable as opposed to a large global array.
 .IX Item "I"
 The symbol is an indirect reference to another symbol.  This is a \s-1GNU\s0
 extension to the a.out object file format which is rarely used.
+.ie n .IP """i""" 4
+.el .IP "\f(CWi\fR" 4
+.IX Item "i"
+The symbol is in a section specific to the implementation of DLLs.
 .ie n .IP """N""" 4
 .el .IP "\f(CWN\fR" 4
 .IX Item "N"
 The symbol is a debugging symbol.
+.ie n .IP """p""" 4
+.el .IP "\f(CWp\fR" 4
+.IX Item "p"
+The symbols is in a stack unwind section.
 .ie n .IP """R""" 4
 .el .IP "\f(CWR\fR" 4
 .IX Item "R"
+.PD 0
+.ie n .IP """r""" 4
+.el .IP "\f(CWr\fR" 4
+.IX Item "r"
+.PD
 The symbol is in a read only data section.
 .ie n .IP """S""" 4
 .el .IP "\f(CWS\fR" 4
 .IX Item "S"
+.PD 0
+.ie n .IP """s""" 4
+.el .IP "\f(CWs\fR" 4
+.IX Item "s"
+.PD
 The symbol is in an uninitialized data section for small objects.
 .ie n .IP """T""" 4
 .el .IP "\f(CWT\fR" 4
 .IX Item "T"
+.PD 0
+.ie n .IP """t""" 4
+.el .IP "\f(CWt\fR" 4
+.IX Item "t"
+.PD
 The symbol is in the text (code) section.
 .ie n .IP """U""" 4
 .el .IP "\f(CWU\fR" 4
@@ -212,13 +250,24 @@ The symbol is undefined.
 .ie n .IP """V""" 4
 .el .IP "\f(CWV\fR" 4
 .IX Item "V"
+.PD 0
+.ie n .IP """v""" 4
+.el .IP "\f(CWv\fR" 4
+.IX Item "v"
+.PD
 The symbol is a weak object.  When a weak defined symbol is linked with
 a normal defined symbol, the normal defined symbol is used with no error.
 When a weak undefined symbol is linked and the symbol is not defined,
-the value of the weak symbol becomes zero with no error.
+the value of the weak symbol becomes zero with no error.  On some
+systems, uppercase indicates that a default value has been specified.
 .ie n .IP """W""" 4
 .el .IP "\f(CWW\fR" 4
 .IX Item "W"
+.PD 0
+.ie n .IP """w""" 4
+.el .IP "\f(CWw\fR" 4
+.IX Item "w"
+.PD
 The symbol is a weak symbol that has not been specifically tagged as a
 weak object symbol.  When a weak defined symbol is linked with a normal
 defined symbol, the normal defined symbol is used with no error.
@@ -439,10 +488,10 @@ with a backslash.  The \fIfile\fR may itself contain additional
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
 Copyright (c) 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008 Free Software Foundation, Inc.
 .PP
 Permission is granted to copy, distribute and/or modify this document
-under the terms of the \s-1GNU\s0 Free Documentation License, Version 1.1
+under the terms of the \s-1GNU\s0 Free Documentation License, Version 1.2
 or any later version published by the Free Software Foundation;
 with no Invariant Sections, with no Front-Cover Texts, and with no
 Back-Cover Texts.  A copy of the license is included in the
