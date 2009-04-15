@@ -1,6 +1,6 @@
 /* This module handles expression trees.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007
+   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support <sac@cygnus.com>.
 
@@ -103,7 +103,10 @@ exp_print_token (token_code_type code, int infix_p)
     { ADDR, "ADDR" },
     { LOADADDR, "LOADADDR" },
     { CONSTANT, "CONSTANT" },
-    { MAX_K, "MAX_K" },
+    { ABSOLUTE, "ABSOLUTE" },
+    { MAX_K, "MAX" },
+    { MIN_K, "MIN" },
+    { ASSERT_K, "ASSERT" },
     { REL, "relocatable" },
     { DATA_SEGMENT_ALIGN, "DATA_SEGMENT_ALIGN" },
     { DATA_SEGMENT_RELRO_END, "DATA_SEGMENT_RELRO_END" },
@@ -282,7 +285,9 @@ fold_binary (etree_type *tree)
   exp_fold_tree_1 (tree->binary.lhs);
 
   /* The SEGMENT_START operator is special because its first
-     operand is a string, not the name of a symbol.  */
+     operand is a string, not the name of a symbol.  Note that the
+     operands have been swapped, so binary.lhs is second (default)
+     operand, binary.rhs is first operand.  */
   if (expld.result.valid_p && tree->type.node_code == SEGMENT_START)
     {
       const char *segment_name;
@@ -296,7 +301,7 @@ fold_binary (etree_type *tree)
 	    seg->used = TRUE;
 	    expld.result.value = seg->value;
 	    expld.result.str = NULL;
-	    expld.result.section = NULL;
+	    expld.result.section = expld.section;
 	    break;
 	  }
     }
@@ -321,9 +326,9 @@ fold_binary (etree_type *tree)
 	      return;
 	    }
 	  else if (expld.section != bfd_abs_section_ptr
-	      && expld.result.section == bfd_abs_section_ptr
-	      && (tree->type.node_code == '+'
-		  || tree->type.node_code == '-'))
+		   && expld.result.section == bfd_abs_section_ptr
+		   && (tree->type.node_code == '+'
+		       || tree->type.node_code == '-'))
 	    {
 	      /* Keep the section of the lhs term.  */
 	      expld.result.section = lhs.section;
@@ -390,6 +395,7 @@ fold_binary (etree_type *tree)
 	      break;
 
 	    case DATA_SEGMENT_ALIGN:
+	      expld.dataseg.relro = exp_dataseg_relro_start;
 	      if (expld.phase != lang_first_phase_enum
 		  && expld.section == bfd_abs_section_ptr
 		  && (expld.dataseg.phase == exp_dataseg_none
@@ -409,7 +415,7 @@ fold_binary (etree_type *tree)
 		      if (expld.phase == lang_allocating_phase_enum)
 			{
 			  expld.dataseg.phase = exp_dataseg_align_seen;
-			  expld.dataseg.min_base = align_n (expld.dot, maxpage);
+			  expld.dataseg.min_base = expld.dot;
 			  expld.dataseg.base = expld.result.value;
 			  expld.dataseg.pagesize = commonpage;
 			  expld.dataseg.maxpagesize = maxpage;
@@ -425,6 +431,7 @@ fold_binary (etree_type *tree)
 	      break;
 
 	    case DATA_SEGMENT_RELRO_END:
+	      expld.dataseg.relro = exp_dataseg_relro_end;
 	      if (expld.phase != lang_first_phase_enum
 		  && (expld.dataseg.phase == exp_dataseg_align_seen
 		      || expld.dataseg.phase == exp_dataseg_adjust
@@ -487,7 +494,7 @@ fold_name (etree_type *tree)
 	  /* Don't find the real header size if only marking sections;
 	     The bfd function may cache incorrect data.  */
 	  if (expld.phase != lang_mark_phase_enum)
-	    hdr_size = bfd_sizeof_headers (output_bfd, &link_info);
+	    hdr_size = bfd_sizeof_headers (link_info.output_bfd, &link_info);
 	  new_abs (hdr_size);
 	}
       break;
@@ -501,7 +508,8 @@ fold_name (etree_type *tree)
 	  int def_iteration
 	    = lang_symbol_definition_iteration (tree->name.name);
 
-	  h = bfd_wrapped_link_hash_lookup (output_bfd, &link_info,
+	  h = bfd_wrapped_link_hash_lookup (link_info.output_bfd,
+					    &link_info,
 					    tree->name.name,
 					    FALSE, FALSE, TRUE);
 	  expld.result.value = (h != NULL
@@ -510,7 +518,7 @@ fold_name (etree_type *tree)
 				    || h->type == bfd_link_hash_common)
 				&& (def_iteration == lang_statement_iteration
 				    || def_iteration == -1));
-	  expld.result.section = bfd_abs_section_ptr;
+	  expld.result.section = expld.section;
 	  expld.result.valid_p = TRUE;
 	}
       break;
@@ -524,7 +532,8 @@ fold_name (etree_type *tree)
 	{
 	  struct bfd_link_hash_entry *h;
 
-	  h = bfd_wrapped_link_hash_lookup (output_bfd, &link_info,
+	  h = bfd_wrapped_link_hash_lookup (link_info.output_bfd,
+					    &link_info,
 					    tree->name.name,
 					    TRUE, FALSE, TRUE);
 	  if (!h)
@@ -601,7 +610,8 @@ fold_name (etree_type *tree)
 	      else
 		{
 		  exp_fold_tree_1 (os->load_base);
-		  make_abs ();
+		  if (expld.result.valid_p)
+		    make_abs ();
 		}
 	    }
 	}
@@ -626,7 +636,8 @@ fold_name (etree_type *tree)
 	      bfd_vma val;
 
 	      if (tree->type.node_code == SIZEOF)
-		val = os->bfd_section->size / bfd_octets_per_byte (output_bfd);
+		val = (os->bfd_section->size
+		       / bfd_octets_per_byte (link_info.output_bfd));
 	      else
 		val = (bfd_vma)1 << os->bfd_section->alignment_power;
 	      
@@ -1052,7 +1063,7 @@ exp_get_vma (etree_type *tree, bfd_vma def, char *name)
       if (expld.result.valid_p)
 	return expld.result.value;
       else if (name != NULL && expld.phase != lang_mark_phase_enum)
-	einfo (_("%F%S nonconstant expression for %s\n"), name);
+	einfo (_("%F%S: nonconstant expression for %s\n"), name);
     }
   return def;
 }
@@ -1077,7 +1088,7 @@ exp_get_fill (etree_type *tree, fill_type *def, char *name)
   if (!expld.result.valid_p)
     {
       if (name != NULL && expld.phase != lang_mark_phase_enum)
-	einfo (_("%F%S nonconstant expression for %s\n"), name);
+	einfo (_("%F%S: nonconstant expression for %s\n"), name);
       return def;
     }
 

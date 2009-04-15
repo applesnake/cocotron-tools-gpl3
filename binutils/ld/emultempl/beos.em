@@ -8,7 +8,7 @@ fi
 fragment <<EOF
 /* This file is part of GLD, the Gnu Linker.
    Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005, 2006, 2007 Free Software Foundation, Inc.
+   2005, 2006, 2007, 2008 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -382,13 +382,13 @@ gld_${EMULATION_NAME}_after_open (void)
   /* Pass the wacky PE command line options into the output bfd.
      FIXME: This should be done via a function, rather than by
      including an internal BFD header.  */
-  if (!coff_data(output_bfd)->pe)
+  if (!coff_data(link_info.output_bfd)->pe)
     {
       einfo ("%F%P: PE operations on non PE file.\n");
     }
 
-  pe_data(output_bfd)->pe_opthdr = pe;
-  pe_data(output_bfd)->dll = init[DLLOFF].value;
+  pe_data(link_info.output_bfd)->pe_opthdr = pe;
+  pe_data(link_info.output_bfd)->dll = init[DLLOFF].value;
 
 }
 
@@ -697,7 +697,7 @@ gld${EMULATION_NAME}_place_orphan (asection *s)
   output_secname = xstrdup (secname);
   ps = strchr (output_secname + 1, '\$');
   *ps = 0;
-  os = lang_output_section_statement_lookup (output_secname);
+  os = lang_output_section_statement_lookup (output_secname, 0, TRUE);
 
   /* Find the '\$' wild statement for this section.  We currently require the
      linker script to explicitly mention "*(.foo\$)".
