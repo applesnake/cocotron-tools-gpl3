@@ -1,6 +1,6 @@
 /* tc-i860.c -- Assembler for the Intel i860 architecture.
    Copyright 1989, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2001, 2002,
-   2003, 2006, 2007 Free Software Foundation, Inc.
+   2003, 2006, 2007, 2008 Free Software Foundation, Inc.
 
    Brought back from the dead and completely reworked
    by Jason Eckhardt <jle@cygnus.com>.
@@ -221,7 +221,7 @@ md_begin (void)
   while (i860_opcodes[i].name != NULL)
     {
       const char *name = i860_opcodes[i].name;
-      retval = hash_insert (op_hash, name, (PTR)&i860_opcodes[i]);
+      retval = hash_insert (op_hash, name, (void *) &i860_opcodes[i]);
       if (retval != NULL)
 	{
 	  fprintf (stderr, _("internal error: can't hash `%s': %s\n"),
@@ -1010,62 +1010,10 @@ i860_get_expression (char *str)
   return 0;
 }
 
-/* Turn a string in input_line_pointer into a floating point constant of
-   type TYPE, and store the appropriate bytes in *LITP.  The number of
-   LITTLENUMS emitted is stored in *SIZEP.  An error message is returned,
-   or NULL on OK.  */
-
-/* Equal to MAX_PRECISION in atof-ieee.c.  */
-#define MAX_LITTLENUMS 6
-
 char *
 md_atof (int type, char *litP, int *sizeP)
 {
-  int prec;
-  LITTLENUM_TYPE words[MAX_LITTLENUMS];
-  LITTLENUM_TYPE *wordP;
-  char *t;
-
-  switch (type)
-    {
-    case 'f':
-    case 'F':
-    case 's':
-    case 'S':
-      prec = 2;
-      break;
-
-    case 'd':
-    case 'D':
-    case 'r':
-    case 'R':
-      prec = 4;
-      break;
-
-    case 'x':
-    case 'X':
-      prec = 6;
-      break;
-
-    case 'p':
-    case 'P':
-      prec = 6;
-      break;
-
-    default:
-      *sizeP = 0;
-      return _("Bad call to MD_ATOF()");
-    }
-  t = atof_ieee (input_line_pointer, type, words);
-  if (t)
-    input_line_pointer = t;
-  *sizeP = prec * sizeof (LITTLENUM_TYPE);
-  for (wordP = words; prec--;)
-    {
-      md_number_to_chars (litP, (long) (*wordP++), sizeof (LITTLENUM_TYPE));
-      litP += sizeof (LITTLENUM_TYPE);
-    }
-  return 0;
+  return ieee_md_atof (type, litP, sizeP, TRUE);
 }
 
 /* Write out in current endian mode.  */
@@ -1083,7 +1031,7 @@ int
 md_estimate_size_before_relax (register fragS *fragP ATTRIBUTE_UNUSED,
 			       segT segtype ATTRIBUTE_UNUSED)
 {
-  as_fatal (_("i860_estimate_size_before_relax\n"));
+  as_fatal (_("relaxation not supported\n"));
 }
 
 #ifdef DEBUG_I860

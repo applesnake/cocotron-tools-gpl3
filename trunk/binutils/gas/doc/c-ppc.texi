@@ -55,6 +55,9 @@ Generate code for PowerPC 440.  BookE and some 405 instructions.
 @item -m7400, -m7410, -m7450, -m7455
 Generate code for PowerPC 7400/7410/7450/7455.
 
+@item -m750cl
+Generate code for PowerPC 750CL.
+
 @item -mppc64, -m620
 Generate code for PowerPC 620/625/630.
 
@@ -79,6 +82,9 @@ Generate code for PowerPC e300 family.
 @item -maltivec
 Generate code for processors with AltiVec instructions.
 
+@item -mvsx
+Generate code for processors with Vector-Scalar (VSX) instructions.
+
 @item -mpower4
 Generate code for Power4 architecture.
 
@@ -87,6 +93,9 @@ Generate code for Power5 architecture.
 
 @item -mpower6
 Generate code for Power6 architecture.
+
+@item -mpower7
+Generate code for Power7 architecture.
 
 @item -mcell
 Generate code for Cell Broadband Engine architecture.

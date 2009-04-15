@@ -1,6 +1,6 @@
 /* tc-ppc.c -- Assemble for the PowerPC or POWER (RS/6000)
    Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-   2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+   2004, 2005, 2006, 2007, 2008 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GAS, the GNU Assembler.
@@ -178,6 +178,10 @@ const char ppc_symbol_chars[] = "%[";
 
 /* The dwarf2 data alignment, adjusted for 32 or 64 bit.  */
 int ppc_cie_data_alignment;
+
+/* The type of processor we are assembling for.  This is one or more
+   of the PPC_OPCODE flags defined in opcode/ppc.h.  */
+ppc_cpu_t ppc_cpu = 0;
 
 /* The target specific pseudo-ops which we support.  */
 
@@ -395,6 +399,24 @@ static const struct pd_reg pre_defined_registers[] =
   { "f9", 9 },
 
   { "fpscr", 0 },
+
+  /* Quantization registers used with pair single instructions.  */
+  { "gqr.0", 0 },
+  { "gqr.1", 1 },
+  { "gqr.2", 2 },
+  { "gqr.3", 3 },
+  { "gqr.4", 4 },
+  { "gqr.5", 5 },
+  { "gqr.6", 6 },
+  { "gqr.7", 7 },
+  { "gqr0", 0 },
+  { "gqr1", 1 },
+  { "gqr2", 2 },
+  { "gqr3", 3 },
+  { "gqr4", 4 },
+  { "gqr5", 5 },
+  { "gqr6", 6 },
+  { "gqr7", 7 },
 
   { "lr", 8 },     /* Link Register */
 
@@ -666,6 +688,8 @@ ppc_parse_name (const char *name, expressionS *expr)
   if (! cr_operand)
     return 0;
 
+  if (*name == '%')
+    ++name;
   val = reg_name_search (cr_names, sizeof cr_names / sizeof cr_names[0],
 			 name);
   if (val < 0)
@@ -678,10 +702,6 @@ ppc_parse_name (const char *name, expressionS *expr)
 }
 
 /* Local variables.  */
-
-/* The type of processor we are assembling for.  This is one or more
-   of the PPC_OPCODE flags defined in opcode/ppc.h.  */
-static unsigned long ppc_cpu = 0;
 
 /* Whether to target xcoff64/elf64.  */
 static unsigned int ppc_obj64 = BFD_DEFAULT_TARGET_SIZE == 64;
@@ -805,6 +825,9 @@ const size_t md_longopts_size = sizeof (md_longopts);
 static int
 parse_cpu (const char *arg)
 {
+  ppc_cpu_t retain_flags =
+    ppc_cpu & (PPC_OPCODE_ALTIVEC | PPC_OPCODE_VSX | PPC_OPCODE_SPE);
+
   /* -mpwrx and -mpwr2 mean to assemble for the IBM POWER/2
      (RIOS2).  */
   if (strcmp (arg, "pwrx") == 0 || strcmp (arg, "pwr2") == 0)
@@ -824,12 +847,17 @@ parse_cpu (const char *arg)
 	   || strcmp (arg, "603") == 0
 	   || strcmp (arg, "604") == 0)
     ppc_cpu = PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC | PPC_OPCODE_32;
-  /* -m403 and -m405 mean to assemble for the PowerPC 403/405.  */
-  else if (strcmp (arg, "403") == 0
-	   || strcmp (arg, "405") == 0)
+  /* Do all PPC750s have paired single ops?  */
+  else if (strcmp (arg, "750cl") == 0)
+    ppc_cpu = PPC_OPCODE_PPC | PPC_OPCODE_PPCPS;
+  else if (strcmp (arg, "403") == 0)
     ppc_cpu = (PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC
 	       | PPC_OPCODE_403 | PPC_OPCODE_32);
-  else if (strcmp (arg, "440") == 0)
+  else if (strcmp (arg, "405") == 0)
+    ppc_cpu = (PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC
+	       | PPC_OPCODE_403 | PPC_OPCODE_405 | PPC_OPCODE_32);
+  else if (strcmp (arg, "440") == 0
+	   || strcmp (arg, "464") == 0)
     ppc_cpu = (PPC_OPCODE_PPC | PPC_OPCODE_BOOKE | PPC_OPCODE_32
 	       | PPC_OPCODE_440 | PPC_OPCODE_ISEL | PPC_OPCODE_RFMCI);
   else if (strcmp (arg, "7400") == 0
@@ -844,23 +872,36 @@ parse_cpu (const char *arg)
   else if (strcmp (arg, "altivec") == 0)
     {
       if (ppc_cpu == 0)
-	ppc_cpu = PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC | PPC_OPCODE_ALTIVEC;
-      else
-	ppc_cpu |= PPC_OPCODE_ALTIVEC;
+	ppc_cpu = PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC;
+
+      retain_flags |= PPC_OPCODE_ALTIVEC;
+    }
+  else if (strcmp (arg, "vsx") == 0)
+    {
+      if (ppc_cpu == 0)
+	ppc_cpu = PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC;
+
+      retain_flags |= PPC_OPCODE_VSX;
     }
   else if (strcmp (arg, "e500") == 0 || strcmp (arg, "e500x2") == 0)
     {
       ppc_cpu = (PPC_OPCODE_PPC | PPC_OPCODE_BOOKE | PPC_OPCODE_SPE
 		 | PPC_OPCODE_ISEL | PPC_OPCODE_EFS | PPC_OPCODE_BRLOCK
 		 | PPC_OPCODE_PMR | PPC_OPCODE_CACHELCK
-		 | PPC_OPCODE_RFMCI);
+		 | PPC_OPCODE_RFMCI | PPC_OPCODE_E500MC);
+    }
+  else if (strcmp (arg, "e500mc") == 0)
+    {
+      ppc_cpu = (PPC_OPCODE_PPC | PPC_OPCODE_BOOKE | PPC_OPCODE_ISEL
+		 | PPC_OPCODE_PMR | PPC_OPCODE_CACHELCK
+		 | PPC_OPCODE_RFMCI | PPC_OPCODE_E500MC);
     }
   else if (strcmp (arg, "spe") == 0)
     {
       if (ppc_cpu == 0)
-	ppc_cpu = PPC_OPCODE_PPC | PPC_OPCODE_SPE | PPC_OPCODE_EFS;
-      else
-	ppc_cpu |= PPC_OPCODE_SPE;
+	ppc_cpu = PPC_OPCODE_PPC | PPC_OPCODE_EFS;
+
+      retain_flags |= PPC_OPCODE_SPE;
     }
   /* -mppc64 and -m620 mean to assemble for the 64-bit PowerPC
      620.  */
@@ -899,13 +940,21 @@ parse_cpu (const char *arg)
     {
       ppc_cpu = (PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC
 		 | PPC_OPCODE_64 | PPC_OPCODE_POWER4
-		 | PPC_OPCODE_POWER5 | PPC_OPCODE_POWER6);
+		 | PPC_OPCODE_POWER5 | PPC_OPCODE_POWER6
+		 | PPC_OPCODE_ALTIVEC);
+    }
+  else if (strcmp (arg, "power7") == 0)
+    {
+      ppc_cpu = (PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC
+		 | PPC_OPCODE_64 | PPC_OPCODE_POWER4
+		 | PPC_OPCODE_POWER5 | PPC_OPCODE_POWER6
+		 | PPC_OPCODE_ALTIVEC | PPC_OPCODE_VSX);
     }
   else if (strcmp (arg, "cell") == 0)
     {
       ppc_cpu = (PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC
 		 | PPC_OPCODE_64 | PPC_OPCODE_POWER4
-		 | PPC_OPCODE_CELL);
+		 | PPC_OPCODE_CELL | PPC_OPCODE_ALTIVEC);
     }
   /* -mcom means assemble for the common intersection between Power
      and PowerPC.  At present, we just allow the union, rather
@@ -918,6 +967,8 @@ parse_cpu (const char *arg)
   else
     return 0;
 
+  /* Make sure the the Altivec, VSX and SPE bits are not lost.  */
+  ppc_cpu |= retain_flags;
   return 1;
 }
 
@@ -1088,10 +1139,13 @@ PowerPC options:\n\
 -m601			generate code for PowerPC 601\n\
 -mppc, -mppc32, -m603, -m604\n\
 			generate code for PowerPC 603/604\n\
--m403, -m405		generate code for PowerPC 403/405\n\
+-m403			generate code for PowerPC 403\n\
+-m405			generate code for PowerPC 405\n\
 -m440			generate code for PowerPC 440\n\
+-m464			generate code for PowerPC 464\n\
 -m7400, -m7410, -m7450, -m7455\n\
-			generate code For PowerPC 7400/7410/7450/7455\n"));
+			generate code for PowerPC 7400/7410/7450/7455\n\
+-m750cl			generate code for PowerPC 750cl\n"));
   fprintf (stream, _("\
 -mppc64, -m620		generate code for PowerPC 620/625/630\n\
 -mppc64bridge		generate code for PowerPC 64, including bridge insns\n\
@@ -1100,13 +1154,16 @@ PowerPC options:\n\
 -mpower4		generate code for Power4 architecture\n\
 -mpower5		generate code for Power5 architecture\n\
 -mpower6		generate code for Power6 architecture\n\
+-mpower7		generate code for Power7 architecture\n\
 -mcell			generate code for Cell Broadband Engine architecture\n\
 -mcom			generate code Power/PowerPC common instructions\n\
 -many			generate code for any architecture (PWR/PWRX/PPC)\n"));
   fprintf (stream, _("\
 -maltivec		generate code for AltiVec\n\
+-mvsx			generate code for Vector-Scalar (VSX) instructions\n\
 -me300			generate code for PowerPC e300 family\n\
 -me500, -me500x2	generate code for Motorola e500 core complex\n\
+-me500mc,               generate code for Freescale e500mc core complex\n\
 -mspe			generate code for Motorola SPE instructions\n\
 -mregnames		Allow symbolic names for registers\n\
 -mno-regnames		Do not allow symbolic names for registers\n"));
@@ -1274,6 +1331,56 @@ ppc_setup_opcodes (void)
 	{
 	  const unsigned char *o;
 	  unsigned long omask = op->mask;
+
+	  if (op != powerpc_opcodes)
+	    {
+	      /* The major opcodes had better be sorted.  Code in the
+		 disassembler assumes the insns are sorted according to
+		 major opcode.  */
+	      if (PPC_OP (op[0].opcode) < PPC_OP (op[-1].opcode))
+		{
+		  as_bad (_("major opcode is not sorted for %s"),
+			  op->name);
+		  bad_insn = TRUE;
+		}
+
+	      /* Warn if the table isn't more strictly ordered.
+		 Unfortunately it doesn't seem possible to order the
+		 table on much more than the major opcode, which makes
+		 it difficult to implement a binary search in the
+		 disassembler.  The problem is that we have multiple
+		 ways to disassemble instructions, and we usually want
+		 to choose a more specific form (with more bits set in
+		 the opcode) than a more general form.  eg. all of the
+		 following are equivalent:
+		 bne label	# opcode = 0x40820000, mask = 0xff830003
+		 bf  2,label	# opcode = 0x40800000, mask = 0xff800003
+		 bc  4,2,label	# opcode = 0x40000000, mask = 0xfc000003
+
+		 There are also cases where the table needs to be out
+		 of order to disassemble the correct instruction for
+		 processor variants.  eg. "lhae" booke64 insn must be
+		 found before "ld" ppc64 insn.  */
+	      else if (0)
+		{
+		  unsigned long t1 = op[0].opcode;
+		  unsigned long t2 = op[-1].opcode;
+
+		  if (((t1 ^ t2) & 0xfc0007ff) == 0
+		      && (t1 & 0xfc0006df) == 0x7c000286)
+		    {
+		      /* spr field is split.  */
+		      t1 = ((t1 & ~0x1ff800)
+			    | ((t1 & 0xf800) << 5) | ((t1 & 0x1f0000) >> 5));
+		      t2 = ((t2 & ~0x1ff800)
+			    | ((t2 & 0xf800) << 5) | ((t2 & 0x1f0000) >> 5));
+		    }
+		  if (t1 < t2)
+		    as_warn (_("%s (%08lx %08lx) after %s (%08lx %08lx)"),
+			     op[0].name, op[0].opcode, op[0].mask,
+			     op[-1].name, op[-1].opcode, op[-1].mask);
+		}
+	    }
 
 	  /* The mask had better not trim off opcode bits.  */
 	  if ((op->opcode & omask) != op->opcode)
@@ -1488,6 +1595,7 @@ static unsigned long
 ppc_insert_operand (unsigned long insn,
 		    const struct powerpc_operand *operand,
 		    offsetT val,
+		    ppc_cpu_t ppc_cpu,
 		    char *file,
 		    unsigned int line)
 {
@@ -2418,12 +2526,19 @@ md_assemble (char *str)
       else
 #endif		/* TE_PE */
 	{
-	  if (! register_name (&ex))
+	  if ((reg_names_p && (operand->flags & PPC_OPERAND_CR) != 0)
+	      || !register_name (&ex))
 	    {
+	      char save_lex = lex_type['%'];
+
 	      if ((operand->flags & PPC_OPERAND_CR) != 0)
-		cr_operand = TRUE;
+		{
+		  cr_operand = TRUE;
+		  lex_type['%'] |= LEX_BEGIN_NAME;
+		}
 	      expression (&ex);
 	      cr_operand = FALSE;
+	      lex_type['%'] = save_lex;
 	    }
 	}
 
@@ -2437,7 +2552,7 @@ md_assemble (char *str)
       else if (ex.X_op == O_register)
 	{
 	  insn = ppc_insert_operand (insn, operand, ex.X_add_number,
-				     (char *) NULL, 0);
+				     ppc_cpu, (char *) NULL, 0);
 	}
       else if (ex.X_op == O_constant)
 	{
@@ -2506,7 +2621,7 @@ md_assemble (char *str)
 	      }
 #endif /* OBJ_ELF */
 	  insn = ppc_insert_operand (insn, operand, ex.X_add_number,
-				     (char *) NULL, 0);
+				     ppc_cpu, (char *) NULL, 0);
 	}
 #ifdef OBJ_ELF
       else if ((reloc = ppc_elf_suffix (&str, &ex)) != BFD_RELOC_UNUSED)
@@ -2518,7 +2633,7 @@ md_assemble (char *str)
 	      break;
 	    case BFD_RELOC_PPC_TLS:
 	      insn = ppc_insert_operand (insn, operand, ppc_obj64 ? 13 : 2,
-					 (char *) NULL, 0);
+					 ppc_cpu, (char *) NULL, 0);
 	      break;
 	  /* We'll only use the 32 (or 64) bit form of these relocations
 	     in constants.  Instructions get the 16 bit form.  */
@@ -2639,6 +2754,14 @@ md_assemble (char *str)
 	{
 	  endc = ')';
 	  need_paren = 0;
+	  /* If expecting more operands, then we want to see "),".  */
+	  if (*str == endc && opindex_ptr[1] != 0)
+	    {
+	      do
+		++str;
+	      while (ISSPACE (*str));
+	      endc = ',';
+	    }
 	}
       else if ((operand->flags & PPC_OPERAND_PARENS) != 0)
 	{
@@ -4008,6 +4131,7 @@ ppc_tc (int ignore ATTRIBUTE_UNUSED)
 
   /* Skip the TOC symbol name.  */
   while (is_part_of_name (*input_line_pointer)
+	 || *input_line_pointer == ' '
 	 || *input_line_pointer == '['
 	 || *input_line_pointer == ']'
 	 || *input_line_pointer == '{'
@@ -4036,7 +4160,7 @@ ppc_machine (int ignore ATTRIBUTE_UNUSED)
 {
   char *cpu_string;
 #define MAX_HISTORY 100
-  static unsigned long *cpu_history;
+  static ppc_cpu_t *cpu_history;
   static int curr_hist;
 
   SKIP_WHITESPACE ();
@@ -4057,7 +4181,7 @@ ppc_machine (int ignore ATTRIBUTE_UNUSED)
 
   if (cpu_string != NULL)
     {
-      unsigned long old_cpu = ppc_cpu;
+      ppc_cpu_t old_cpu = ppc_cpu;
       char *p;
 
       for (p = cpu_string; *p != 0; p++)
@@ -5178,58 +5302,10 @@ ppc_frob_section (asection *sec)
 
 #endif /* OBJ_XCOFF */
 
-/* Turn a string in input_line_pointer into a floating point constant
-   of type TYPE, and store the appropriate bytes in *LITP.  The number
-   of LITTLENUMS emitted is stored in *SIZEP.  An error message is
-   returned, or NULL on OK.  */
-
 char *
 md_atof (int type, char *litp, int *sizep)
 {
-  int prec;
-  LITTLENUM_TYPE words[4];
-  char *t;
-  int i;
-
-  switch (type)
-    {
-    case 'f':
-      prec = 2;
-      break;
-
-    case 'd':
-      prec = 4;
-      break;
-
-    default:
-      *sizep = 0;
-      return _("bad call to md_atof");
-    }
-
-  t = atof_ieee (input_line_pointer, type, words);
-  if (t)
-    input_line_pointer = t;
-
-  *sizep = prec * 2;
-
-  if (target_big_endian)
-    {
-      for (i = 0; i < prec; i++)
-	{
-	  md_number_to_chars (litp, (valueT) words[i], 2);
-	  litp += 2;
-	}
-    }
-  else
-    {
-      for (i = prec - 1; i >= 0; i--)
-	{
-	  md_number_to_chars (litp, (valueT) words[i], 2);
-	  litp += 2;
-	}
-    }
-
-  return NULL;
+  return ieee_md_atof (type, litp, sizep, target_big_endian);
 }
 
 /* Write a value out to the object file, using the appropriate
@@ -5624,6 +5700,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       else
 	insn = bfd_getl32 ((unsigned char *) where);
       insn = ppc_insert_operand (insn, operand, (offsetT) value,
+				 fixP->tc_fix_data.ppc_cpu,
 				 fixP->fx_file, fixP->fx_line);
       if (target_big_endian)
 	bfd_putb32 ((bfd_vma) insn, (unsigned char *) where);
@@ -6057,10 +6134,11 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 #ifdef TE_PE
       fixP->fx_addnumber = 0;
 #else
-      /* We want to use the offset within the data segment of the
-	 symbol, not the actual VMA of the symbol.  */
+      /* We want to use the offset within the toc, not the actual VMA
+	 of the symbol.  */
       fixP->fx_addnumber =
-	- bfd_get_section_vma (stdoutput, S_GET_SEGMENT (fixP->fx_addsy));
+	- bfd_get_section_vma (stdoutput, S_GET_SEGMENT (fixP->fx_addsy))
+	- S_GET_VALUE (ppc_toc_csect);
 #endif
     }
 #endif

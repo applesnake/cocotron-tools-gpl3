@@ -1,5 +1,5 @@
 /* tc-m32c.c -- Assembler for the Renesas M32C.
-   Copyright (C) 2005, 2006, 2007 Free Software Foundation.
+   Copyright (C) 2005, 2006, 2007, 2008 Free Software Foundation.
    Contributed by RedHat.
 
    This file is part of GAS, the GNU Assembler.
@@ -68,12 +68,14 @@ const char * md_shortopts = M32C_SHORTOPTS;
 #define OPTION_CPU_M16C	       (OPTION_MD_BASE)
 #define OPTION_CPU_M32C        (OPTION_MD_BASE + 1)
 #define OPTION_LINKRELAX       (OPTION_MD_BASE + 2)
+#define OPTION_H_TICK_HEX      (OPTION_MD_BASE + 3)
 
 struct option md_longopts[] =
 {
   { "m16c",       no_argument,	      NULL, OPTION_CPU_M16C   },
   { "m32c",       no_argument,	      NULL, OPTION_CPU_M32C   },
   { "relax",      no_argument,	      NULL, OPTION_LINKRELAX   },
+  { "h-tick-hex", no_argument,	      NULL, OPTION_H_TICK_HEX  },
   {NULL, no_argument, NULL, 0}
 };
 size_t md_longopts_size = sizeof (md_longopts);
@@ -123,6 +125,10 @@ md_parse_option (int c, char * arg ATTRIBUTE_UNUSED)
 
     case OPTION_LINKRELAX:
       m32c_relax = 1;
+      break;
+
+    case OPTION_H_TICK_HEX:
+      enable_h_tick_hex = 1;
       break;
 
     default:
@@ -1208,47 +1214,7 @@ md_number_to_chars (char * buf, valueT val, int n)
 char *
 md_atof (int type, char * litP, int * sizeP)
 {
-  int              i;
-  int              prec;
-  LITTLENUM_TYPE   words [MAX_LITTLENUMS];
-  char *           t;
-
-  switch (type)
-    {
-    case 'f':
-    case 'F':
-    case 's':
-    case 'S':
-      prec = 2;
-      break;
-
-    case 'd':
-    case 'D':
-    case 'r':
-    case 'R':
-      prec = 4;
-      break;
-
-   /* FIXME: Some targets allow other format chars for bigger sizes here.  */
-
-    default:
-      * sizeP = 0;
-      return _("Bad call to md_atof()");
-    }
-
-  t = atof_ieee (input_line_pointer, type, words);
-  if (t)
-    input_line_pointer = t;
-  * sizeP = prec * sizeof (LITTLENUM_TYPE);
-
-  for (i = 0; i < prec; i++)
-    {
-      md_number_to_chars (litP, (valueT) words[i],
-			  sizeof (LITTLENUM_TYPE));
-      litP += sizeof (LITTLENUM_TYPE);
-    }
-     
-  return 0;
+  return ieee_md_atof (type, litP, sizeP, TRUE);
 }
 
 bfd_boolean
@@ -1337,8 +1303,6 @@ m32c_fix_adjustable (fixS * fixP)
 }
 
 /* Worker function for m32c_is_colon_insn().  */
-static char restore_colon PARAMS ((int));
-
 static char
 restore_colon (int advance_i_l_p_by)
 {

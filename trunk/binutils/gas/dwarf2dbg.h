@@ -72,8 +72,16 @@ extern void dwarf2_gen_line_info (addressT addr, struct dwarf2_line_info *l);
 /* Must be called for each generated instruction.  */
 extern void dwarf2_emit_insn (int);
 
+/* Reset the state of the line number information to reflect that
+   it has been used.  */
+extern void dwarf2_consume_line_info (void);
+
 /* Should be called for each code label.  */
 extern void dwarf2_emit_label (symbolS *);
+
+/* True when we've seen a .loc directive recently.  Used to avoid
+   doing work when there's nothing to do.  */
+bfd_boolean dwarf2_loc_directive_seen;
 
 /* True when we're supposed to set the basic block mark whenever a label
    is seen.  Unless the target is doing Something Weird, just call 

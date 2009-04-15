@@ -1,6 +1,6 @@
 /* tc-vax.c - vax-specific -
    Copyright 1987, 1991, 1992, 1993, 1994, 1995, 1998, 2000, 2001, 2002,
-   2003, 2004, 2005, 2006, 2007
+   2003, 2004, 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -959,11 +959,11 @@ vip_begin (int synthetic_too,		/* 1 means include jXXX op-codes.  */
   op_hash = hash_new ();
 
   for (vP = votstrs; *vP->vot_name && !retval; vP++)
-    retval = hash_insert (op_hash, vP->vot_name, (PTR) &vP->vot_detail);
+    retval = hash_insert (op_hash, vP->vot_name, (void *) &vP->vot_detail);
 
   if (synthetic_too)
     for (vP = synthetic_votstrs; *vP->vot_name && !retval; vP++)
-      retval = hash_insert (op_hash, vP->vot_name, (PTR) &vP->vot_detail);
+      retval = hash_insert (op_hash, vP->vot_name, (void *) &vP->vot_detail);
 
 #ifndef CONST_TABLE
   vip_op_defaults (immediate, indirect, displen);
@@ -3404,4 +3404,10 @@ vax_cons_fix_new (fragS *frag, int where, unsigned int nbytes, expressionS *exp)
 
   fix_new_exp (frag, where, (int) nbytes, exp, 0, r);
   vax_cons_special_reloc = NULL;
+}
+
+char *
+md_atof (int type, char * litP, int * sizeP)
+{
+  return vax_md_atof (type, litP, sizeP);
 }

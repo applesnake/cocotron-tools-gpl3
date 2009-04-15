@@ -1,5 +1,5 @@
 /* tc-frv.c -- Assembler for the Fujitsu FRV.
-   Copyright 2002, 2003, 2004, 2005, 2006, 2007
+   Copyright 2002, 2003, 2004, 2005, 2006, 2007, 2008
    Free Software Foundation. Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -187,9 +187,8 @@ static int tomcat_doubles = 0;
 static int tomcat_singles = 0;
 
 /* Forward reference to static functions */
-static void frv_set_flags		PARAMS ((int));
-static void frv_pic_ptr			PARAMS ((int));
-static void frv_frob_file_section	PARAMS ((bfd *, asection *, PTR));
+static void frv_set_flags (int);
+static void frv_pic_ptr (int);
 
 /* The target specific pseudo-ops which we support.  */
 const pseudo_typeS md_pseudo_table[] =
@@ -263,9 +262,7 @@ size_t md_longopts_size = sizeof (md_longopts);
 static int g_switch_value = 8;
 
 int
-md_parse_option (c, arg)
-     int    c;
-     char * arg;
+md_parse_option (int c, char *arg)
 {
   switch (c)
     {
@@ -404,7 +401,7 @@ md_parse_option (c, arg)
 
 	else
 	  {
-	    as_fatal ("Unknown cpu -mcpu=%s", arg);
+	    as_fatal (_("Unknown cpu -mcpu=%s"), arg);
 	    return 0;
 	  }
 
@@ -455,37 +452,36 @@ md_parse_option (c, arg)
 }
 
 void
-md_show_usage (stream)
-  FILE * stream;
+md_show_usage (FILE * stream)
 {
   fprintf (stream, _("FRV specific command line options:\n"));
-  fprintf (stream, _("-G n         Data >= n bytes is in small data area\n"));
-  fprintf (stream, _("-mgpr-32     Note 32 gprs are used\n"));
-  fprintf (stream, _("-mgpr-64     Note 64 gprs are used\n"));
-  fprintf (stream, _("-mfpr-32     Note 32 fprs are used\n"));
-  fprintf (stream, _("-mfpr-64     Note 64 fprs are used\n"));
-  fprintf (stream, _("-msoft-float Note software fp is used\n"));
-  fprintf (stream, _("-mdword      Note stack is aligned to a 8 byte boundary\n"));
-  fprintf (stream, _("-mno-dword   Note stack is aligned to a 4 byte boundary\n"));
-  fprintf (stream, _("-mdouble     Note fp double insns are used\n"));
-  fprintf (stream, _("-mmedia      Note media insns are used\n"));
-  fprintf (stream, _("-mmuladd     Note multiply add/subtract insns are used\n"));
-  fprintf (stream, _("-mpack       Note instructions are packed\n"));
-  fprintf (stream, _("-mno-pack    Do not allow instructions to be packed\n"));
-  fprintf (stream, _("-mpic        Note small position independent code\n"));
-  fprintf (stream, _("-mPIC        Note large position independent code\n"));
-  fprintf (stream, _("-mlibrary-pic Compile library for large position indepedent code\n"));
-  fprintf (stream, _("-mfdpic      Assemble for the FDPIC ABI\n"));
-  fprintf (stream, _("-mnopic      Disable -mpic, -mPIC, -mlibrary-pic and -mfdpic\n"));
+  fprintf (stream, _("-G n            Put data <= n bytes in the small data area\n"));
+  fprintf (stream, _("-mgpr-32        Mark generated file as only using 32 GPRs\n"));
+  fprintf (stream, _("-mgpr-64        Mark generated file as using all 64 GPRs\n"));
+  fprintf (stream, _("-mfpr-32        Mark generated file as only using 32 FPRs\n"));
+  fprintf (stream, _("-mfpr-64        Mark generated file as using all 64 FPRs\n"));
+  fprintf (stream, _("-msoft-float    Mark generated file as using software FP\n"));
+  fprintf (stream, _("-mdword         Mark generated file as using a 8-byte stack alignment\n"));
+  fprintf (stream, _("-mno-dword      Mark generated file as using a 4-byte stack alignment\n"));
+  fprintf (stream, _("-mdouble        Mark generated file as using double precision FP insns\n"));
+  fprintf (stream, _("-mmedia         Mark generated file as using media insns\n"));
+  fprintf (stream, _("-mmuladd        Mark generated file as using multiply add/subtract insns\n"));
+  fprintf (stream, _("-mpack          Allow instructions to be packed\n"));
+  fprintf (stream, _("-mno-pack       Do not allow instructions to be packed\n"));
+  fprintf (stream, _("-mpic           Mark generated file as using small position independent code\n"));
+  fprintf (stream, _("-mPIC           Mark generated file as using large position independent code\n"));
+  fprintf (stream, _("-mlibrary-pic   Mark generated file as using position indepedent code for libraries\n"));
+  fprintf (stream, _("-mfdpic         Assemble for the FDPIC ABI\n"));
+  fprintf (stream, _("-mnopic         Disable -mpic, -mPIC, -mlibrary-pic and -mfdpic\n"));
   fprintf (stream, _("-mcpu={fr500|fr550|fr400|fr405|fr450|fr300|frv|simple|tomcat}\n"));
-  fprintf (stream, _("             Record the cpu type\n"));
-  fprintf (stream, _("-mtomcat-stats Print out stats for tomcat workarounds\n"));
-  fprintf (stream, _("-mtomcat-debug Debug tomcat workarounds\n"));
+  fprintf (stream, _("                Record the cpu type\n"));
+  fprintf (stream, _("-mtomcat-stats  Print out stats for tomcat workarounds\n"));
+  fprintf (stream, _("-mtomcat-debug  Debug tomcat workarounds\n"));
 } 
 
 
 void
-md_begin ()
+md_begin (void)
 {
   /* Initialize the `cgen' interface.  */
   
@@ -520,11 +516,8 @@ frv_md_fdpic_enabled (void)
 
 int chain_num = 0;
 
-struct vliw_insn_list *frv_insert_vliw_insn PARAMS ((bfd_boolean));
-
-struct vliw_insn_list *
-frv_insert_vliw_insn (count)
-      bfd_boolean count;
+static struct vliw_insn_list *
+frv_insert_vliw_insn (bfd_boolean count)
 {
   struct vliw_insn_list *vliw_insn_list_entry;
   struct vliw_chain     *vliw_chain_entry;
@@ -593,14 +586,10 @@ frv_insert_vliw_insn (count)
 
 /* Check a vliw insn for an insn of type containing the sym passed in label_sym.  */
 
-static struct vliw_insn_list *frv_find_in_vliw
-  PARAMS ((enum vliw_insn_type, struct vliw_chain *, symbolS *));
-
 static struct vliw_insn_list *
-frv_find_in_vliw (vliw_insn_type, this_chain, label_sym)
-    enum vliw_insn_type vliw_insn_type;
-    struct vliw_chain *this_chain;
-    symbolS *label_sym;
+frv_find_in_vliw (enum vliw_insn_type vliw_insn_type,
+		  struct vliw_chain *this_chain,
+		  symbolS *label_sym)
 {
 
   struct vliw_insn_list *the_insn;
@@ -631,11 +620,8 @@ enum vliw_nop_type
   VLIW_DOUBLE_THEN_SINGLE_NOP
 };
 
-static void frv_debug_tomcat PARAMS ((struct vliw_chain *));
-
 static void
-frv_debug_tomcat (start_chain)
-   struct vliw_chain *start_chain;
+frv_debug_tomcat (struct vliw_chain *start_chain)
 {
    struct vliw_chain *this_chain;
    struct vliw_insn_list *this_insn;
@@ -661,11 +647,8 @@ frv_debug_tomcat (start_chain)
    }
 }
 
-static void frv_adjust_vliw_count PARAMS ((struct vliw_chain *));
-
 static void
-frv_adjust_vliw_count (this_chain)
-    struct vliw_chain *this_chain;
+frv_adjust_vliw_count (struct vliw_chain *this_chain)
 {
   struct vliw_insn_list *this_insn;
 
@@ -684,14 +667,10 @@ frv_adjust_vliw_count (this_chain)
 /* Insert the desired nop combination in the vliw chain before insert_before_insn.
    Rechain the vliw insn.  */
 
-static struct vliw_chain *frv_tomcat_shuffle
-  PARAMS ((enum vliw_nop_type, struct vliw_chain *, struct vliw_insn_list *));
-
 static struct vliw_chain *
-frv_tomcat_shuffle (this_nop_type, vliw_to_split, insert_before_insn)
-   enum vliw_nop_type    this_nop_type;
-   struct vliw_chain     *vliw_to_split;
-   struct vliw_insn_list *insert_before_insn;
+frv_tomcat_shuffle (enum vliw_nop_type this_nop_type,
+		    struct vliw_chain *vliw_to_split,
+		    struct vliw_insn_list *insert_before_insn)
 {
 
   bfd_boolean pack_prev = FALSE;
@@ -855,10 +834,8 @@ frv_tomcat_shuffle (this_nop_type, vliw_to_split, insert_before_insn)
   return return_me;
 }
 
-static void frv_tomcat_analyze_vliw_chains PARAMS ((void));
-
 static void
-frv_tomcat_analyze_vliw_chains ()
+frv_tomcat_analyze_vliw_chains (void)
 {
   struct vliw_chain *vliw1 = NULL;
   struct vliw_chain *vliw2 = NULL;
@@ -975,7 +952,7 @@ workaround_top:
 }
 
 void
-frv_tomcat_workaround ()
+frv_tomcat_workaround (void)
 {
   if (frv_mach != bfd_mach_frvtomcat)
     return;
@@ -1110,8 +1087,7 @@ target_implements_insn_p (const CGEN_INSN *insn)
 }
 
 void
-md_assemble (str)
-     char * str;
+md_assemble (char *str)
 {
   frv_insn insn;
   char *errmsg;
@@ -1240,8 +1216,7 @@ md_assemble (str)
    We just ignore it.  */
 
 void 
-md_operand (expressionP)
-     expressionS * expressionP;
+md_operand (expressionS *expressionP)
 {
   if (* input_line_pointer == '#')
     {
@@ -1251,17 +1226,14 @@ md_operand (expressionP)
 }
 
 valueT
-md_section_align (segment, size)
-     segT   segment;
-     valueT size;
+md_section_align (segT segment, valueT size)
 {
   int align = bfd_get_section_alignment (stdoutput, segment);
   return ((size + (1 << align) - 1) & (-1 << align));
 }
 
 symbolS *
-md_undefined_symbol (name)
-  char * name ATTRIBUTE_UNUSED;
+md_undefined_symbol (char *name ATTRIBUTE_UNUSED)
 {
   return 0;
 }
@@ -1278,9 +1250,7 @@ const relax_typeS md_relax_table[] =
 };
 
 long
-frv_relax_frag (fragP, stretch)
-     fragS   *fragP ATTRIBUTE_UNUSED;
-     long    stretch ATTRIBUTE_UNUSED;
+frv_relax_frag (fragS *fragP ATTRIBUTE_UNUSED, long stretch ATTRIBUTE_UNUSED)
 {
   return 0;
 }
@@ -1297,9 +1267,7 @@ frv_relax_frag (fragP, stretch)
    0 value.  */
 
 int
-md_estimate_size_before_relax (fragP, segment)
-     fragS * fragP;
-     segT    segment ATTRIBUTE_UNUSED;
+md_estimate_size_before_relax (fragS *fragP, segT segment ATTRIBUTE_UNUSED)
 {
   switch (fragP->fr_subtype)
     {
@@ -1320,10 +1288,9 @@ md_estimate_size_before_relax (fragP, segment)
    fragP->fr_subtype is the subtype of what the address relaxed to.  */
 
 void
-md_convert_frag (abfd, sec, fragP)
-  bfd *   abfd ATTRIBUTE_UNUSED;
-  segT    sec ATTRIBUTE_UNUSED;
-  fragS * fragP;
+md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
+		 segT sec ATTRIBUTE_UNUSED,
+		 fragS *fragP)
 {
   switch (fragP->fr_subtype)
     {
@@ -1344,9 +1311,7 @@ md_convert_frag (abfd, sec, fragP)
    given a PC relative reloc.  */
 
 long
-md_pcrel_from_section (fixP, sec)
-     fixS * fixP;
-     segT   sec;
+md_pcrel_from_section (fixS *fixP, segT sec)
 {
   if (TC_FORCE_RELOCATION (fixP)
       || (fixP->fx_addsy != (symbolS *) NULL
@@ -1367,10 +1332,9 @@ md_pcrel_from_section (fixP, sec)
    *FIXP may be modified if desired.  */
 
 bfd_reloc_code_real_type
-md_cgen_lookup_reloc (insn, operand, fixP)
-     const CGEN_INSN *    insn ATTRIBUTE_UNUSED;
-     const CGEN_OPERAND * operand;
-     fixS *               fixP;
+md_cgen_lookup_reloc (const CGEN_INSN *insn ATTRIBUTE_UNUSED,
+		      const CGEN_OPERAND *operand,
+		      fixS *fixP)
 {
   switch (operand->type)
     {
@@ -1419,8 +1383,7 @@ md_cgen_lookup_reloc (insn, operand, fixP)
    relaxing.  */
 
 int
-frv_force_relocation (fix)
-     fixS * fix;
+frv_force_relocation (fixS *fix)
 {
   switch (fix->fx_r_type < BFD_RELOC_UNUSED
 	  ? (int) fix->fx_r_type
@@ -1468,10 +1431,7 @@ frv_force_relocation (fix)
 /* Apply a fixup that could be resolved within the assembler.  */
 
 void
-md_apply_fix (fixP, valP, seg)
-     fixS *   fixP;
-     valueT * valP;
-     segT     seg;
+md_apply_fix (fixS *fixP, valueT *valP, segT seg)
 {
   if (fixP->fx_addsy == 0)
     switch (fixP->fx_cgen.opinfo)
@@ -1515,7 +1475,7 @@ md_apply_fix (fixP, valP, seg)
       case BFD_RELOC_FRV_TLSDESC_RELAX:
       case BFD_RELOC_FRV_GETTLSOFF_RELAX:
       case BFD_RELOC_FRV_TLSOFF_RELAX:
-	fixP->fx_addsy = expr_build_uconstant (0);
+	fixP->fx_addsy = abs_section_sym;
 	break;
       }
   else
@@ -1550,74 +1510,19 @@ md_apply_fix (fixP, valP, seg)
 /* Write a value out to the object file, using the appropriate endianness.  */
 
 void
-frv_md_number_to_chars (buf, val, n)
-     char * buf;
-     valueT val;
-     int    n;
+frv_md_number_to_chars (char *buf, valueT val, int n)
 {
   number_to_chars_bigendian (buf, val, n);
 }
 
-/* Turn a string in input_line_pointer into a floating point constant of type
-   type, and store the appropriate bytes in *litP.  The number of LITTLENUMS
-   emitted is stored in *sizeP .  An error message is returned, or NULL on OK.
-*/
-
-/* Equal to MAX_PRECISION in atof-ieee.c */
-#define MAX_LITTLENUMS 6
-
 char *
-md_atof (type, litP, sizeP)
-     char   type;
-     char * litP;
-     int *  sizeP;
+md_atof (int type, char *litP, int *sizeP)
 {
-  int              i;
-  int              prec;
-  LITTLENUM_TYPE   words [MAX_LITTLENUMS];
-  char *           t;
-
-  switch (type)
-    {
-    case 'f':
-    case 'F':
-    case 's':
-    case 'S':
-      prec = 2;
-      break;
-
-    case 'd':
-    case 'D':
-    case 'r':
-    case 'R':
-      prec = 4;
-      break;
-
-   /* FIXME: Some targets allow other format chars for bigger sizes here.  */
-
-    default:
-      * sizeP = 0;
-      return _("Bad call to md_atof()");
-    }
-
-  t = atof_ieee (input_line_pointer, type, words);
-  if (t)
-    input_line_pointer = t;
-  * sizeP = prec * sizeof (LITTLENUM_TYPE);
-
-  for (i = 0; i < prec; i++)
-    {
-      md_number_to_chars (litP, (valueT) words[i],
-			  sizeof (LITTLENUM_TYPE));
-      litP += sizeof (LITTLENUM_TYPE);
-    }
-     
-  return 0;
+  return ieee_md_atof (type, litP, sizeP, TRUE);
 }
 
 bfd_boolean
-frv_fix_adjustable (fixP)
-   fixS * fixP;
+frv_fix_adjustable (fixS *fixP)
 {
   bfd_reloc_code_real_type reloc_type;
 
@@ -1643,8 +1548,7 @@ frv_fix_adjustable (fixP)
 
 /* Allow user to set flags bits.  */
 void
-frv_set_flags (arg)
-     int arg ATTRIBUTE_UNUSED;
+frv_set_flags (int arg ATTRIBUTE_UNUSED)
 {
   flagword new_flags = get_absolute_expression ();
   flagword new_mask = ~ (flagword)0;
@@ -1666,8 +1570,7 @@ frv_set_flags (arg)
    BFD_RELOC_32 at that time.  */
 
 void
-frv_pic_ptr (nbytes)
-     int nbytes;
+frv_pic_ptr (int nbytes)
 {
   expressionS exp;
   char *p;
@@ -1700,7 +1603,7 @@ frv_pic_ptr (nbytes)
 	  if (*input_line_pointer == ')')
 	    input_line_pointer++;
 	  else
-	    as_bad ("missing ')'");
+	    as_bad (_("missing ')'"));
 	  reloc_type = BFD_RELOC_FRV_FUNCDESC;
 	}
       else if (strncasecmp (input_line_pointer, "tlsmoff(", 8) == 0)
@@ -1710,7 +1613,7 @@ frv_pic_ptr (nbytes)
 	  if (*input_line_pointer == ')')
 	    input_line_pointer++;
 	  else
-	    as_bad ("missing ')'");
+	    as_bad (_("missing ')'"));
 	  reloc_type = BFD_RELOC_FRV_TLSMOFF;
 	}
       else
@@ -1746,10 +1649,7 @@ frv_pic_ptr (nbytes)
    not possible, issue an error.  */
 
 static void
-frv_frob_file_section (abfd, sec, ptr)
-     bfd *abfd;
-     asection *sec;
-     PTR ptr ATTRIBUTE_UNUSED;
+frv_frob_file_section (bfd *abfd, asection *sec, void *ptr ATTRIBUTE_UNUSED)
 {
   segment_info_type *seginfo = seg_info (sec);
   fixS *fixp;
@@ -1891,14 +1791,13 @@ frv_frob_file_section (abfd, sec, ptr)
    for any relocations that pic won't support.  */
 
 void
-frv_frob_file ()
+frv_frob_file (void)
 {
-  bfd_map_over_sections (stdoutput, frv_frob_file_section, (PTR)0);
+  bfd_map_over_sections (stdoutput, frv_frob_file_section, (void *) 0);
 }
 
 void
-frv_frob_label (this_label)
-    symbolS *this_label;
+frv_frob_label (symbolS *this_label)
 {
   struct vliw_insn_list *vliw_insn_list_entry;
 
@@ -1914,14 +1813,13 @@ frv_frob_label (this_label)
 }
 
 fixS *
-frv_cgen_record_fixup_exp (frag, where, insn, length, operand, opinfo, exp)
-     fragS *              frag;
-     int                  where;
-     const CGEN_INSN *    insn;
-     int                  length;
-     const CGEN_OPERAND * operand;
-     int                  opinfo;
-     expressionS *        exp;
+frv_cgen_record_fixup_exp (fragS *frag,
+			   int where,
+			   const CGEN_INSN *insn,
+			   int length,
+			   const CGEN_OPERAND *operand,
+			   int opinfo,
+			   expressionS *exp)
 {
   fixS * fixP = gas_cgen_record_fixup_exp (frag, where, insn, length,
                                            operand, opinfo, exp);

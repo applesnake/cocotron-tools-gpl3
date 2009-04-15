@@ -264,6 +264,29 @@ check_multiply_halfregs (Macfunc *aa, Macfunc *ab)
 }
 
 
+/* Check mac option.  */
+
+static int
+check_macfunc_option (Macfunc *a, Opt_mode *opt)
+{
+  /* Default option is always valid.  */
+  if (opt->mod == 0)
+    return 0;
+
+  if ((a->w == 1 && a->P == 1
+       && opt->mod != M_FU && opt->mod != M_IS && opt->mod != M_IU
+       && opt->mod != M_S2RND && opt->mod != M_ISS2)
+      || (a->w == 1 && a->P == 0
+	  && opt->mod != M_FU && opt->mod != M_IS && opt->mod != M_IU
+	  && opt->mod != M_T && opt->mod != M_TFU && opt->mod != M_S2RND
+	  && opt->mod != M_ISS2 && opt->mod != M_IH)
+      || (a->w == 0 && a->P == 0
+	  && opt->mod != M_FU && opt->mod != M_IS && opt->mod != M_W32))
+    return -1;
+
+  return 0;
+}
+
 /* Check (vector) mac funcs and ops.  */
 
 static int
@@ -273,6 +296,11 @@ check_macfuncs (Macfunc *aa, Opt_mode *opa,
   /* Variables for swapping.  */
   Macfunc mtmp;
   Opt_mode otmp;
+
+  /* The option mode should be put at the end of the second instruction
+     of the vector except M, which should follow MAC1 instruction.  */
+  if (opa->mod != 0)
+    return yyerror ("Bad opt mode");
 
   /* If a0macfunc comes before a1macfunc, swap them.  */
 	
@@ -291,16 +319,14 @@ check_macfuncs (Macfunc *aa, Opt_mode *opa,
     {
       if (opb->MM != 0)
 	return yyerror ("(M) not allowed with A0MAC");
-      if (opa->mod != 0)
-	return yyerror ("Bad opt mode");
       if (ab->n != 0)
 	return yyerror ("Vector AxMACs can't be same");
     }
 
   /*  If both ops are one of 0, 1, or 2, we have multiply_halfregs in both
   assignment_or_macfuncs.  */
-  if (aa->op < 3 && aa->op >=0
-      && ab->op < 3 && ab->op >= 0)
+  if ((aa->op == 0 || aa->op == 1 || aa->op == 2)
+      && (ab->op == 0 || ab->op == 1 || ab->op == 2))
     {
       if (check_multiply_halfregs (aa, ab) < 0)
 	return -1;
@@ -321,20 +347,18 @@ check_macfuncs (Macfunc *aa, Opt_mode *opa,
       if (aa->w && (aa->dst.regno - ab->dst.regno != 1))
 	return yyerror ("Destination Dregs must differ by one");
     }
-  /* We assign to full regs, thus obey even/odd rules.  */
-  else if ((aa->w && aa->P && IS_EVEN (aa->dst)) 
-	   || (ab->w && ab->P && !IS_EVEN (ab->dst)))
-    return yyerror ("Even/Odd register assignment mismatch");
-  /* We assign to half regs, thus obey hi/low rules.  */
-  else if ( (aa->w && !aa->P && !IS_H (aa->dst)) 
-	    || (ab->w && !aa->P && IS_H (ab->dst)))
-    return yyerror ("High/Low register assignment mismatch");
+
+  /* Make sure mod flags get ORed, too.  */
+  opb->mod |= opa->mod;
+
+  /* Check option.  */
+  if (check_macfunc_option (aa, opb) < 0
+      && check_macfunc_option (ab, opb) < 0)
+    return yyerror ("bad option");
 
   /* Make sure first macfunc has got both P flags ORed.  */
   aa->P |= ab->P;
 
-  /* Make sure mod flags get ORed, too.  */
-  opb->mod |= opa->mod;
   return 0;	
 }
 
@@ -659,6 +683,9 @@ asm_1:
 	  int op0, op1;
 	  int w0 = 0, w1 = 0;
 	  int h00, h10, h01, h11;
+
+	  if (check_macfunc_option (&$1, &$2) < 0)
+	    return yyerror ("bad option");
 
 	  if ($1.n == 0)
 	    {
@@ -1432,6 +1459,8 @@ asm_1:
 	      notethat ("COMPI2opD: dregs += imm7\n");
 	      $$ = COMPI2OPD (&$1, imm7 ($3), 1);
 	    }
+	  else if ((IS_DREG ($1) || IS_PREG ($1)) && IS_CONST ($3))
+	    return yyerror ("Immediate value out of range");
 	  else
 	    return yyerror ("Register mismatch");
 	}
@@ -1552,23 +1581,23 @@ asm_1:
 	}
 	| CCREG ASSIGN REG_A _ASSIGN_ASSIGN REG_A
 	{
-	  if (!REG_SAME ($3, $5))
+	  if ($3.regno == REG_A0 && $5.regno == REG_A1)
 	    {
 	      notethat ("CCflag: CC = A0 == A1\n");
 	      $$ = CCFLAG (0, 0, 5, 0, 0);
 	    }
 	  else
-	    return yyerror ("CC register expected");
+	    return yyerror ("AREGs are in bad order or same");
 	}
 	| CCREG ASSIGN REG_A LESS_THAN REG_A
 	{
-	  if (!REG_SAME ($3, $5))
+	  if ($3.regno == REG_A0 && $5.regno == REG_A1)
 	    {
 	      notethat ("CCflag: CC = A0 < A1\n");
 	      $$ = CCFLAG (0, 0, 6, 0, 0);
 	    }
 	  else
-	    return yyerror ("Register mismatch");
+	    return yyerror ("AREGs are in bad order or same");
 	}
 	| CCREG ASSIGN REG LESS_THAN REG iu_or_nothing
 	{
@@ -1597,7 +1626,9 @@ asm_1:
 	    {
 	      notethat ("CCflag: CC = dpregs == dpregs\n");
 	      $$ = CCFLAG (&$3, $5.regno & CODE_MASK, 0, 0, IS_PREG ($3) ? 1 : 0);
-	    } 
+	    }
+	  else
+	    return yyerror ("Compare only of same register class");
 	}
 	| CCREG ASSIGN REG _ASSIGN_ASSIGN expr
 	{
@@ -1611,13 +1642,13 @@ asm_1:
 	}
 	| CCREG ASSIGN REG_A _LESS_THAN_ASSIGN REG_A
 	{
-	  if (!REG_SAME ($3, $5))
+	  if ($3.regno == REG_A0 && $5.regno == REG_A1)
 	    {
 	      notethat ("CCflag: CC = A0 <= A1\n");
 	      $$ = CCFLAG (0, 0, 7, 0, 0);
 	    }
 	  else
-	    return yyerror ("CC register expected");
+	    return yyerror ("AREGs are in bad order or same");
 	}
 	| CCREG ASSIGN REG _LESS_THAN_ASSIGN REG iu_or_nothing
 	{
@@ -1719,6 +1750,11 @@ asm_1:
 	  if (!IS_H ($1) && $4.MM)
 	    return yyerror ("(M) not allowed with MAC0");
 
+	  if ($4.mod != 0 && $4.mod != M_FU && $4.mod != M_IS
+	      && $4.mod != M_IU && $4.mod != M_T && $4.mod != M_TFU
+	      && $4.mod != M_S2RND && $4.mod != M_ISS2 && $4.mod != M_IH)
+	    return yyerror ("bad option.");
+
 	  if (IS_H ($1))
 	    {
 	      $$ = DSP32MULT (0, $4.MM, $4.mod, 1, 0,
@@ -1741,6 +1777,10 @@ asm_1:
 
 	  if (IS_EVEN ($1) && $4.MM)
 	    return yyerror ("(M) not allowed with MAC0");
+
+	  if ($4.mod != 0 && $4.mod != M_FU && $4.mod != M_IS
+	      && $4.mod != M_S2RND && $4.mod != M_ISS2)
+	    return yyerror ("bad option");
 
 	  if (!IS_EVEN ($1))
 	    {
@@ -3165,6 +3205,11 @@ asm_1:
 	  if (!IS_DREG ($1) && !ispreg)
 	    return yyerror ("Bad destination register for LOAD");
 
+	  if (tmp->type == Expr_Node_Reloc
+	      && strcmp (tmp->value.s_value,
+			 "_current_shared_library_p5_offset_") != 0)
+	    return yyerror ("Plain symbol used as offset");
+
 	  if ($5.r0)
 	    tmp = unary (Expr_Op_Type_NEG, tmp);
 
@@ -3961,6 +4006,11 @@ a_plusassign:
 assign_macfunc:
 	REG ASSIGN REG_A
 	{
+	  if (IS_A1 ($3) && IS_EVEN ($1))
+	    return yyerror ("Cannot move A1 to even register");
+	  else if (!IS_A1 ($3) && !IS_EVEN ($1))
+	    return yyerror ("Cannot move A0 to odd register");
+
 	  $$.w = 1;
           $$.P = 1;
           $$.n = IS_A1 ($3);
@@ -3968,11 +4018,6 @@ assign_macfunc:
           $$.dst = $1;
 	  $$.s0.regno = 0;
           $$.s1.regno = 0;
-
-	  if (IS_A1 ($3) && IS_EVEN ($1))
-	    return yyerror ("Cannot move A1 to even register");
-	  else if (!IS_A1 ($3) && !IS_EVEN ($1))
-	    return yyerror ("Cannot move A0 to odd register");
 	}
 	| a_macfunc
 	{
@@ -3982,6 +4027,11 @@ assign_macfunc:
 	}
 	| REG ASSIGN LPAREN a_macfunc RPAREN
 	{
+	  if ($4.n && IS_EVEN ($1))
+	    return yyerror ("Cannot move A1 to even register");
+	  else if (!$4.n && !IS_EVEN ($1))
+	    return yyerror ("Cannot move A0 to odd register");
+
 	  $$ = $4;
 	  $$.w = 1;
           $$.P = 1;
@@ -3990,6 +4040,11 @@ assign_macfunc:
 
 	| HALF_REG ASSIGN LPAREN a_macfunc RPAREN
 	{
+	  if ($4.n && !IS_H ($1))
+	    return yyerror ("Cannot move A1 to low half of register");
+	  else if (!$4.n && IS_H ($1))
+	    return yyerror ("Cannot move A0 to high half of register");
+
 	  $$ = $4;
 	  $$.w = 1;
 	  $$.P = 0;
@@ -3998,6 +4053,11 @@ assign_macfunc:
 
 	| HALF_REG ASSIGN REG_A
 	{
+	  if (IS_A1 ($3) && !IS_H ($1))
+	    return yyerror ("Cannot move A1 to low half of register");
+	  else if (!IS_A1 ($3) && IS_H ($1))
+	    return yyerror ("Cannot move A0 to high half of register");
+
 	  $$.w = 1;
 	  $$.P = 0;
 	  $$.n = IS_A1 ($3);
@@ -4005,11 +4065,6 @@ assign_macfunc:
           $$.dst = $1;
 	  $$.s0.regno = 0;
           $$.s1.regno = 0;
-
-	  if (IS_A1 ($3) && !IS_H ($1))
-	    return yyerror ("Cannot move A1 to low half of register");
-	  else if (!IS_A1 ($3) && IS_H ($1))
-	    return yyerror ("Cannot move A0 to high half of register");
 	}
 	;
 

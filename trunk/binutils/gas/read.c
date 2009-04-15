@@ -1,6 +1,6 @@
 /* read.c - read a source file -
    Copyright 1986, 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
+   1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -270,8 +270,8 @@ static const pseudo_typeS potable[] = {
   {"abort", s_abort, 0},
   {"align", s_align_ptwo, 0},
   {"altmacro", s_altmacro, 1},
-  {"ascii", stringer, 0},
-  {"asciz", stringer, 1},
+  {"ascii", stringer, 8+0},
+  {"asciz", stringer, 8+1},
   {"balign", s_align_bytes, 0},
   {"balignw", s_align_bytes, -2},
   {"balignl", s_align_bytes, -4},
@@ -416,7 +416,11 @@ static const pseudo_typeS potable[] = {
   {"stabd", s_stab, 'd'},
   {"stabn", s_stab, 'n'},
   {"stabs", s_stab, 's'},
-  {"string", stringer, 1},
+  {"string", stringer, 8+1},
+  {"string8", stringer, 8+1},
+  {"string16", stringer, 16+1},
+  {"string32", stringer, 32+1},
+  {"string64", stringer, 64+1},
   {"struct", s_struct, 0},
 /* tag  */
   {"text", s_text, 0},
@@ -1272,13 +1276,14 @@ do_align (int n, char *fill, int len, int max)
    (in bytes).  A negative ARG is the negative of the length of the
    fill pattern.  BYTES_P is non-zero if the alignment value should be
    interpreted as the byte boundary, rather than the power of 2.  */
-
-#define ALIGN_LIMIT (stdoutput->arch_info->bits_per_address - 1)
+#ifndef TC_ALIGN_LIMIT
+#define TC_ALIGN_LIMIT (stdoutput->arch_info->bits_per_address - 1)
+#endif
 
 static void
 s_align (int arg, int bytes_p)
 {
-  unsigned int align_limit = ALIGN_LIMIT;
+  unsigned int align_limit = TC_ALIGN_LIMIT;
   unsigned int align;
   char *stop = NULL;
   char stopc = 0;
@@ -2549,8 +2554,13 @@ s_macro (int ignore ATTRIBUTE_UNUSED)
 void
 s_mexit (int ignore ATTRIBUTE_UNUSED)
 {
-  cond_exit_macro (macro_nest);
-  buffer_limit = input_scrub_next_buffer (&input_line_pointer);
+  if (macro_nest)
+    {
+      cond_exit_macro (macro_nest);
+      buffer_limit = input_scrub_next_buffer (&input_line_pointer);
+    }
+  else
+    as_warn (_("ignoring macro exit outside a macro definition."));
 }
 
 /* Switch in and out of MRI mode.  */
@@ -3163,7 +3173,7 @@ s_space (int mult)
 
       if (exp.X_op == O_constant)
 	{
-	  long repeat;
+	  offsetT repeat;
 
 	  repeat = exp.X_add_number;
 	  if (mult)
@@ -3293,7 +3303,7 @@ s_float_space (int float_type)
 
       err = md_atof (float_type, temp, &flen);
       know (flen <= MAXIMUM_NUMBER_OF_CHARS_FOR_FLOAT);
-      know (flen > 0);
+      know (err != NULL || flen > 0);
       if (err)
 	{
 	  as_bad (_("bad floating literal: %s"), err);
@@ -3444,14 +3454,15 @@ s_weakref (int ignore ATTRIBUTE_UNUSED)
 	  char *loop;
 
 	  loop = concat (S_GET_NAME (symbolP),
-			 " => ", S_GET_NAME (symbolP2), NULL);
+			 " => ", S_GET_NAME (symbolP2), (const char *) NULL);
 
 	  symp = symbolP2;
 	  while (symp != symbolP)
 	    {
 	      char *old_loop = loop;
 	      symp = symbol_get_value_expression (symp)->X_add_symbol;
-	      loop = concat (loop, " => ", S_GET_NAME (symp), NULL);
+	      loop = concat (loop, " => ", S_GET_NAME (symp),
+			     (const char *) NULL);
 	      free (old_loop);
 	    }
 
@@ -3598,6 +3609,12 @@ pseudo_set (symbolS *symbolP)
       break;
 
     case O_register:
+      if (S_IS_EXTERNAL (symbolP))
+	{
+	  as_bad ("can't equate global symbol `%s' with register name",
+		  S_GET_NAME (symbolP));
+	  return;
+	}
       S_SET_SEGMENT (symbolP, reg_section);
       S_SET_VALUE (symbolP, (valueT) exp.X_add_number);
       set_zero_frag (symbolP);
@@ -4106,8 +4123,18 @@ emit_expr (expressionS *exp, unsigned int nbytes)
 	  && ((get & mask) != mask
 	      || (get & hibit) == 0))
 	{		/* Leading bits contain both 0s & 1s.  */
+#if defined (BFD64) && BFD_HOST_64BIT_LONG_LONG
+#ifndef __MSVCRT__
+	  as_warn (_("value 0x%llx truncated to 0x%llx"),
+		   (unsigned long long) get, (unsigned long long) use);
+#else
+	  as_warn (_("value 0x%I64x truncated to 0x%I64x"),
+		   (unsigned long long) get, (unsigned long long) use);
+#endif
+#else
 	  as_warn (_("value 0x%lx truncated to 0x%lx"),
 		   (unsigned long) get, (unsigned long) use);
+#endif
 	}
       /* Put bytes in right order.  */
       md_number_to_chars (p, use, (int) nbytes);
@@ -4165,41 +4192,45 @@ emit_expr (expressionS *exp, unsigned int nbytes)
 	}
     }
   else
-    {
-      memset (p, 0, nbytes);
+    emit_expr_fix (exp, nbytes, frag_now, p);
+}
 
-      /* Now we need to generate a fixS to record the symbol value.  */
+void
+emit_expr_fix (expressionS *exp, unsigned int nbytes, fragS *frag, char *p)
+{
+  memset (p, 0, nbytes);
+
+  /* Generate a fixS to record the symbol value.  */
 
 #ifdef TC_CONS_FIX_NEW
-      TC_CONS_FIX_NEW (frag_now, p - frag_now->fr_literal, nbytes, exp);
+  TC_CONS_FIX_NEW (frag, p - frag->fr_literal, nbytes, exp);
 #else
-      {
-	bfd_reloc_code_real_type r;
+  {
+    bfd_reloc_code_real_type r;
 
-	switch (nbytes)
-	  {
-	  case 1:
-	    r = BFD_RELOC_8;
-	    break;
-	  case 2:
-	    r = BFD_RELOC_16;
-	    break;
-	  case 4:
-	    r = BFD_RELOC_32;
-	    break;
-	  case 8:
-	    r = BFD_RELOC_64;
-	    break;
-	  default:
-	    as_bad (_("unsupported BFD relocation size %u"), nbytes);
-	    r = BFD_RELOC_32;
-	    break;
-	  }
-	fix_new_exp (frag_now, p - frag_now->fr_literal, (int) nbytes, exp,
-		     0, r);
+    switch (nbytes)
+      {
+      case 1:
+	r = BFD_RELOC_8;
+	break;
+      case 2:
+	r = BFD_RELOC_16;
+	break;
+      case 4:
+	r = BFD_RELOC_32;
+	break;
+      case 8:
+	r = BFD_RELOC_64;
+	break;
+      default:
+	as_bad (_("unsupported BFD relocation size %u"), nbytes);
+	r = BFD_RELOC_32;
+	break;
       }
+    fix_new_exp (frag, p - frag->fr_literal, (int) nbytes, exp,
+		 0, r);
+  }
 #endif
-    }
 }
 
 #ifdef BITFIELD_CONS_EXPRESSIONS
@@ -4593,7 +4624,7 @@ float_cons (/* Clobbers input_line-pointer, checks end-of-line.  */
 	{
 	  err = md_atof (float_type, temp, &length);
 	  know (length <= MAXIMUM_NUMBER_OF_CHARS_FOR_FLOAT);
-	  know (length > 0);
+	  know (err != NULL || length > 0);
 	  if (err)
 	    {
 	      as_bad (_("bad floating literal: %s"), err);
@@ -4956,16 +4987,52 @@ s_leb128 (int sign)
   demand_empty_rest_of_line ();
 }
 
-/* We read 0 or more ',' separated, double-quoted strings.
+static void
+stringer_append_char (int c, int bitsize)
+{
+  if (!target_big_endian)
+    FRAG_APPEND_1_CHAR (c);
+
+  switch (bitsize)
+    {
+    case 64:
+      FRAG_APPEND_1_CHAR (0);
+      FRAG_APPEND_1_CHAR (0);
+      FRAG_APPEND_1_CHAR (0);
+      FRAG_APPEND_1_CHAR (0);
+      /* Fall through.  */
+    case 32:
+      FRAG_APPEND_1_CHAR (0);
+      FRAG_APPEND_1_CHAR (0);
+      /* Fall through.  */
+    case 16:
+      FRAG_APPEND_1_CHAR (0);
+      /* Fall through.  */
+    case 8:
+      break;
+    default:
+      /* Called with invalid bitsize argument.  */
+      abort ();
+      break;
+    }
+  if (target_big_endian)
+    FRAG_APPEND_1_CHAR (c);
+}
+
+/* Worker to do .ascii etc statements.
+   Reads 0 or more ',' separated, double-quoted strings.
    Caller should have checked need_pass_2 is FALSE because we don't
-   check it.  */
+   check it.
+   Checks for end-of-line.
+   BITS_APPENDZERO says how many bits are in a target char.
+   The bottom bit is set if a NUL char should be appended to the strings.  */
 
 void
-stringer (/* Worker to do .ascii etc statements.  */
-	  /* Checks end-of-line.  */
-	  register int append_zero	/* 0: don't append '\0', else 1.  */)
+stringer (int bits_appendzero)
 {
-  register unsigned int c;
+  const int bitsize = bits_appendzero & ~7;
+  const int append_zero = bits_appendzero & 1;
+  unsigned int c;
   char *start;
 
 #ifdef md_flush_pending_output
@@ -5003,14 +5070,13 @@ stringer (/* Worker to do .ascii etc statements.  */
 	case '\"':
 	  ++input_line_pointer;	/*->1st char of string.  */
 	  start = input_line_pointer;
+
 	  while (is_a_char (c = next_char_of_string ()))
-	    {
-	      FRAG_APPEND_1_CHAR (c);
-	    }
+	    stringer_append_char (c, bitsize);
+
 	  if (append_zero)
-	    {
-	      FRAG_APPEND_1_CHAR (0);
-	    }
+	    stringer_append_char (0, bitsize);
+
 	  know (input_line_pointer[-1] == '\"');
 
 #ifndef NO_LISTING
@@ -5037,11 +5103,10 @@ stringer (/* Worker to do .ascii etc statements.  */
 	case '<':
 	  input_line_pointer++;
 	  c = get_single_number ();
-	  FRAG_APPEND_1_CHAR (c);
+	  stringer_append_char (c, bitsize);
 	  if (*input_line_pointer != '>')
-	    {
-	      as_bad (_("expected <nn>"));
-	    }
+	    as_bad (_("expected <nn>"));
+
 	  input_line_pointer++;
 	  break;
 	case ',':
@@ -5053,7 +5118,7 @@ stringer (/* Worker to do .ascii etc statements.  */
     }
 
   demand_empty_rest_of_line ();
-}				/* stringer() */
+}
 
 /* FIXME-SOMEDAY: I had trouble here on characters with the
     high bits set.  We'll probably also have trouble with
@@ -5628,14 +5693,20 @@ do_s_func (int end_p, const char *default_prefix)
       if (*input_line_pointer != ',')
 	{
 	  if (default_prefix)
-	    asprintf (&label, "%s%s", default_prefix, name);
+	    {
+	      if (asprintf (&label, "%s%s", default_prefix, name) == -1)
+		as_fatal ("%s", xstrerror (errno));
+	    }
 	  else
 	    {
 	      char leading_char = bfd_get_symbol_leading_char (stdoutput);
 	      /* Missing entry point, use function's name with the leading
 		 char prepended.  */
 	      if (leading_char)
-		asprintf (&label, "%c%s", leading_char, name);
+		{
+		  if (asprintf (&label, "%c%s", leading_char, name) == -1)
+		    as_fatal ("%s", xstrerror (errno));
+		}
 	      else
 		label = name;
 	    }

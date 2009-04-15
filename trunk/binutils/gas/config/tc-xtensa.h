@@ -1,5 +1,5 @@
 /* tc-xtensa.h -- Header file for tc-xtensa.c.
-   Copyright (C) 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2005, 2007, 2008 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -46,6 +46,8 @@ struct fix;
 
 enum xtensa_relax_statesE
 {
+  RELAX_XTENSA_NONE,
+
   RELAX_ALIGN_NEXT_OPCODE,
   /* Use the first opcode of the next fragment to determine the
      alignment requirements.  This is ONLY used for LOOPs currently.  */
@@ -104,7 +106,9 @@ enum xtensa_relax_statesE
   RELAX_LOOP_END_ADD_NOP,
   /* When the code density option is available, this will generate a
      NOP.N marked RELAX_NARROW.  Otherwise, it will create an rs_fill
-     fragment with a NOP in it.  */
+     fragment with a NOP in it.  Once a frag has been converted to
+     RELAX_LOOP_END_ADD_NOP, it should never be changed back to 
+     RELAX_LOOP_END.  */
 
   RELAX_LITERAL,
   /* Another fragment could generate an expansion here but has not yet.  */
@@ -275,6 +279,7 @@ typedef struct xtensa_symfield_type
 {
   unsigned int is_loop_target : 1;
   unsigned int is_branch_target : 1;
+  symbolS *next_expr_symbol;
 } xtensa_symfield_type;
 
 
@@ -330,7 +335,7 @@ extern char *xtensa_section_rename (char *);
 #define TC_FORCE_RELOCATION(fix)	xtensa_force_relocation (fix)
 #define TC_FORCE_RELOCATION_SUB_SAME(fix, seg) \
   (! SEG_NORMAL (seg) || xtensa_force_relocation (fix))
-#define	TC_VALIDATE_FIX_SUB(fix)	xtensa_validate_fix_sub (fix)
+#define	TC_VALIDATE_FIX_SUB(fix, seg)	xtensa_validate_fix_sub (fix)
 #define NO_PSEUDO_DOT			xtensa_check_inside_bundle ()
 #define tc_canonicalize_symbol_name(s)	xtensa_section_rename (s)
 #define tc_canonicalize_section_name(s)	xtensa_section_rename (s)
@@ -338,6 +343,7 @@ extern char *xtensa_section_rename (char *);
 #define tc_fix_adjustable(fix)		xtensa_fix_adjustable (fix)
 #define tc_frob_label(sym)		xtensa_frob_label (sym)
 #define tc_unrecognized_line(ch)	xtensa_unrecognized_line (ch)
+#define tc_symbol_new_hook(sym)		xtensa_symbol_new_hook (sym)
 #define md_do_align(a,b,c,d,e)		xtensa_flush_pending_output ()
 #define md_elf_section_change_hook	xtensa_elf_section_change_hook
 #define md_end				xtensa_end
@@ -372,6 +378,10 @@ extern char *xtensa_section_rename (char *);
 #define md_relax_frag(segment, fragP, stretch) \
   xtensa_relax_frag (fragP, stretch, &stretched)
 
+/* Only allow call frame debug info optimization when linker relaxation is
+   not enabled as otherwise we could generate the DWARF directives without
+   the relocs necessary to patch them up.  */
+#define md_allow_eh_opt (linkrelax == 0)
 
 #define LOCAL_LABELS_FB 1
 #define WORKING_DOT_WORD 1
