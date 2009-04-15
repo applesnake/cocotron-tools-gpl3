@@ -25,11 +25,11 @@
 ..
 .\" Set up some character translations and predefined strings.  \*(-- will
 .\" give an unbreakable dash, \*(PI will give pi, \*(L" will give a left
-.\" double quote, and \*(R" will give a right double quote.  \*(C+ will
-.\" give a nicer C++.  Capital omega is used to do unbreakable dashes and
-.\" therefore won't be available.  \*(C` and \*(C' expand to `' in nroff,
-.\" nothing in troff, for use with C<>.
-.tr \(*W-
+.\" double quote, and \*(R" will give a right double quote.  | will give a
+.\" real vertical bar.  \*(C+ will give a nicer C++.  Capital omega is used to
+.\" do unbreakable dashes and therefore won't be available.  \*(C` and \*(C'
+.\" expand to `' in nroff, nothing in troff, for use with C<>.
+.tr \(*W-|\(bv\*(Tr
 .ds C+ C\v'-.1v'\h'-1p'\s-2+\h'-1p'+\s0\v'.1v'\h'-1p'
 .ie n \{\
 .    ds -- \(*W-
@@ -128,7 +128,7 @@
 .\" ========================================================================
 .\"
 .IX Title "LD 1"
-.TH LD 1 "2007-08-28" "binutils-2.18" "GNU Development Tools"
+.TH LD 1 "2008-09-10" "binutils-2.18.90" "GNU Development Tools"
 .SH "NAME"
 ld \- The GNU linker
 .SH "SYNOPSIS"
@@ -172,7 +172,7 @@ object files on a standard, supported Unix system.  On such a system, to
 link a file \f(CW\*(C`hello.o\*(C'\fR:
 .PP
 .Vb 1
-\&        ld \-o <output> /lib/crt0.o hello.o \-lc
+\&        ld -o <output> /lib/crt0.o hello.o -lc
 .Ve
 .PP
 This tells \fBld\fR to produce a file called \fIoutput\fR as the
@@ -207,9 +207,11 @@ augments the main linker script used for the link (either the default
 linker script or the one specified by using \fB\-T\fR).  This feature
 permits the linker to link against a file which appears to be an object
 or an archive, but actually merely defines some symbol values, or uses
-\&\f(CW\*(C`INPUT\*(C'\fR or \f(CW\*(C`GROUP\*(C'\fR to load other objects.  Note that
-specifying a script in this way merely augments the main linker script;
-use the \fB\-T\fR option to replace the default linker script entirely.
+\&\f(CW\*(C`INPUT\*(C'\fR or \f(CW\*(C`GROUP\*(C'\fR to load other objects.  Specifying a
+script in this way merely augments the main linker script, with the
+extra commands placed after the main script; use the \fB\-T\fR option
+to replace the default linker script entirely, but note the effect of
+the \f(CW\*(C`INSERT\*(C'\fR command.  
 .PP
 For options whose names are a single letter,
 option arguments must either follow the option letter without intervening
@@ -238,7 +240,7 @@ prefixed by \fB\-Wl,\fR (or whatever is appropriate for the particular
 compiler driver) like this:
 .PP
 .Vb 1
-\&          gcc \-Wl,\-\-startgroup foo.o bar.o \-Wl,\-\-endgroup
+\&          gcc -Wl,--startgroup foo.o bar.o -Wl,--endgroup
 .Ve
 .PP
 This is important, because otherwise the compiler driver program may
@@ -1111,7 +1113,12 @@ linker is normally correct; don't use this unless you know what you are
 doing.
 .IP "\fB\-\-fatal\-warnings\fR" 4
 .IX Item "--fatal-warnings"
-Treat all warnings as errors.
+.PD 0
+.IP "\fB\-\-no\-fatal\-warnings\fR" 4
+.IX Item "--no-fatal-warnings"
+.PD
+Treat all warnings as errors.  The default behaviour can be restored
+with the option \fB\-\-no\-fatal\-warnings\fR.
 .IP "\fB\-\-force\-exe\-suffix\fR" 4
 .IX Item "--force-exe-suffix"
 Make sure that an output file has a .exe suffix.
@@ -1129,10 +1136,24 @@ it ends in a \f(CW\*(C`.exe\*(C'\fR suffix.
 .IX Item "--no-gc-sections"
 .PD
 Enable garbage collection of unused input sections.  It is ignored on
-targets that do not support this option.  This option is not compatible
-with \fB\-r\fR or \fB\-\-emit\-relocs\fR. The default behaviour (of not
+targets that do not support this option.  The default behaviour (of not
 performing this garbage collection) can be restored by specifying
 \&\fB\-\-no\-gc\-sections\fR on the command line.
+.Sp
+\&\fB\-\-gc\-sections\fR decides which input sections are used by
+examining symbols and relocations.  The section containing the entry
+symbol and all sections containing symbols undefined on the
+command-line will be kept, as will sections containing symbols
+referenced by dynamic objects.  Note that when building shared
+libraries, the linker must assume that any visible symbol is
+referenced.  Once this initial set of sections has been determined,
+the linker recursively marks as used any section referenced by their
+relocations.  See \fB\-\-entry\fR and \fB\-\-undefined\fR.
+.Sp
+This option can be set when doing a partial link (enabled with option
+\&\fB\-r\fR).  In this case the root of symbols kept must be explicitely 
+specified either by an \fB\-\-entry\fR or \fB\-\-undefined\fR option or by
+a \f(CW\*(C`ENTRY\*(C'\fR command in the linker script.
 .IP "\fB\-\-print\-gc\-sections\fR" 4
 .IX Item "--print-gc-sections"
 .PD 0
@@ -1363,15 +1384,15 @@ at link time. Searching \fB\-rpath\fR in this way is only supported
 by native linkers and cross linkers which have been configured with
 the \fB\-\-with\-sysroot\fR option.
 .IP "3." 4
-On an \s-1ELF\s0 system, if the \fB\-rpath\fR and \f(CW\*(C`rpath\-link\*(C'\fR options
-were not used, search the contents of the environment variable
-\&\f(CW\*(C`LD_RUN_PATH\*(C'\fR. It is for the native linker only.
+On an \s-1ELF\s0 system, for native linkers, if the \fB\-rpath\fR and
+\&\fB\-rpath\-link\fR options were not used, search the contents of the
+environment variable \f(CW\*(C`LD_RUN_PATH\*(C'\fR.
 .IP "4." 4
 On SunOS, if the \fB\-rpath\fR option was not used, search any
 directories specified using \fB\-L\fR options.
 .IP "5." 4
-For a native linker, the contents of the environment variable
-\&\f(CW\*(C`LD_LIBRARY_PATH\*(C'\fR.
+For a native linker, the search the contents of the environment
+variable \f(CW\*(C`LD_LIBRARY_PATH\*(C'\fR.
 .IP "6." 4
 For a native \s-1ELF\s0 linker, the directories in \f(CW\*(C`DT_RUNPATH\*(C'\fR or
 \&\f(CW\*(C`DT_RPATH\*(C'\fR of a shared library are searched for shared
@@ -1398,13 +1419,14 @@ Create a shared library.  This is currently only supported on \s-1ELF\s0, \s-1XC
 and SunOS platforms.  On SunOS, the linker will automatically create a
 shared library if the \fB\-e\fR option is not used and there are
 undefined symbols in the link.
-.IP "\fB\-\-sort\-common\fR" 4
-.IX Item "--sort-common"
-This option tells \fBld\fR to sort the common symbols by size when it
-places them in the appropriate output sections.  First come all the one
-byte symbols, then all the two byte, then all the four byte, and then
-everything else.  This is to prevent gaps between symbols due to
-alignment constraints.
+.IP "\fB\-\-sort\-common [= ascending | descending]\fR" 4
+.IX Item "--sort-common [= ascending | descending]"
+This option tells \fBld\fR to sort the common symbols by alignment in
+ascending or descending order when it places them in the appropriate output
+sections.  The symbol alignments considered are sixteen-byte or larger,
+eight\-byte, four\-byte, two\-byte, and one\-byte. This is to prevent gaps
+between symbols due to alignment constraints.  If no sorting order is
+specified, then descending order is assumed.
 .IP "\fB\-\-sort\-section name\fR" 4
 .IX Item "--sort-section name"
 This option will apply \f(CW\*(C`SORT_BY_NAME\*(C'\fR to all wildcard section
@@ -1953,6 +1975,12 @@ building the import libraries with those \s-1DATA\s0 exports. Note: Use of the
 to be made writable. This does not conform to the PE-COFF format
 specification published by Microsoft.
 .Sp
+Note \- use of the 'auto\-import' extension will also cause read only
+data which would normally be placed into the .rdata section to be
+placed into the .data section instead.  This is in order to work
+around a problem with consts that is described here:
+http://www.cygwin.com/ml/cygwin/2004\-09/msg01101.html
+.Sp
 Using 'auto\-import' generally will 'just work' \*(-- but sometimes you may
 see this message:
 .Sp
@@ -1983,7 +2011,7 @@ a variable, or b) make the 'constant' index a variable.  Thus:
 .Sp
 .Vb 3
 \&        extern type extern_array[];
-\&        extern_array[1] \-\->
+\&        extern_array[1] -->
 \&           { volatile type *t=extern_array; t[1] }
 .Ve
 .Sp
@@ -1991,7 +2019,7 @@ or
 .Sp
 .Vb 3
 \&        extern type extern_array[];
-\&        extern_array[1] \-\->
+\&        extern_array[1] -->
 \&           { volatile int t=1; extern_array[t] }
 .Ve
 .Sp
@@ -2000,15 +2028,15 @@ is to make the struct itself (or the long long, or the ...) variable:
 .Sp
 .Vb 3
 \&        extern struct s extern_struct;
-\&        extern_struct.field \-\->
-\&           { volatile struct s *t=&extern_struct; t\->field }
+\&        extern_struct.field -->
+\&           { volatile struct s *t=&extern_struct; t->field }
 .Ve
 .Sp
 or
 .Sp
 .Vb 3
 \&        extern long long extern_ll;
-\&        extern_ll \-\->
+\&        extern_ll -->
 \&          { volatile long long * local_ll=&extern_ll; *local_ll }
 .Ve
 .Sp
@@ -2024,9 +2052,9 @@ constant offset' problem, you should consider typical real-world usage:
 Original:
 .Sp
 .Vb 7
-\&        \-\-foo.h
+\&        --foo.h
 \&        extern int arr[];
-\&        \-\-foo.c
+\&        --foo.c
 \&        #include "foo.h"
 \&        void main(int argc, char **argv){
 \&          printf("%d\en",arr[1]);
@@ -2036,9 +2064,9 @@ Original:
 Solution 1:
 .Sp
 .Vb 9
-\&        \-\-foo.h
+\&        --foo.h
 \&        extern int arr[];
-\&        \-\-foo.c
+\&        --foo.c
 \&        #include "foo.h"
 \&        void main(int argc, char **argv){
 \&          /* This workaround is for win32 and cygwin; do not "optimize" */
@@ -2050,8 +2078,8 @@ Solution 1:
 Solution 2:
 .Sp
 .Vb 14
-\&        \-\-foo.h
-\&        /* Note: auto\-export is assumed (no __declspec(dllexport)) */
+\&        --foo.h
+\&        /* Note: auto-export is assumed (no __declspec(dllexport)) */
 \&        #if (defined(_WIN32) || defined(__CYGWIN__)) && \e
 \&          !(defined(FOO_BUILD_DLL) || defined(FOO_STATIC))
 \&        #define FOO_IMPORT __declspec(dllimport)
@@ -2059,7 +2087,7 @@ Solution 2:
 \&        #define FOO_IMPORT
 \&        #endif
 \&        extern FOO_IMPORT int arr[];
-\&        \-\-foo.c
+\&        --foo.c
 \&        #include "foo.h"
 \&        void main(int argc, char **argv){
 \&          printf("%d\en",arr[1]);
@@ -2135,6 +2163,15 @@ This option indicates to the linker the name of the memory region in
 the \fB\s-1MEMORY\s0\fR specification that describes the memory bank window.
 The definition of such region is then used by the linker to compute
 paging and addresses within the memory window.
+.PP
+The following options are supported to control handling of \s-1GOT\s0 generation
+when linking for 68K targets.
+.IP "\fB\-\-got=\fR\fItype\fR" 4
+.IX Item "--got=type"
+This option tells the linker which \s-1GOT\s0 generation scheme to use.
+\&\fItype\fR should be one of \fBsingle\fR, \fBnegative\fR,
+\&\fBmultigot\fR or \fBtarget\fR.  For more information refer to the
+Info entry for \fIld\fR.
 .SH "ENVIRONMENT"
 .IX Header "ENVIRONMENT"
 You can change the behaviour of \fBld\fR with the environment variables

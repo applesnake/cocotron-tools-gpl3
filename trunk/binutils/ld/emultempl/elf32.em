@@ -13,7 +13,7 @@ fragment <<EOF
 
 /* ${ELFSIZE} bit ELF emulation code for ${EMULATION_NAME}
    Copyright 1991, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+   2002, 2003, 2004, 2005, 2006, 2007, 2008 Free Software Foundation, Inc.
    Written by Steve Chamberlain <sac@cygnus.com>
    ELF support by Ian Lance Taylor <ian@cygnus.com>
 
@@ -307,7 +307,7 @@ gld${EMULATION_NAME}_try_needed (struct dt_needed *needed,
   const char *soname;
   int class;
 
-  abfd = bfd_openr (name, bfd_get_target (output_bfd));
+  abfd = bfd_openr (name, bfd_get_target (link_info.output_bfd));
   if (abfd == NULL)
     return FALSE;
   if (! bfd_check_format (abfd, bfd_object))
@@ -322,7 +322,7 @@ gld${EMULATION_NAME}_try_needed (struct dt_needed *needed,
     }
 
   /* For DT_NEEDED, they have to match.  */
-  if (abfd->xvec != output_bfd->xvec)
+  if (abfd->xvec != link_info.output_bfd->xvec)
     {
       bfd_close (abfd);
       return FALSE;
@@ -556,7 +556,7 @@ gld${EMULATION_NAME}_check_ld_elf_hints (const char *name, int force)
       FILE *f;
       char *tmppath;
 
-      tmppath = concat (ld_sysroot, _PATH_ELF_HINTS, NULL);
+      tmppath = concat (ld_sysroot, _PATH_ELF_HINTS, (const char *) NULL);
       f = fopen (tmppath, FOPEN_RB);
       free (tmppath);
       if (f != NULL)
@@ -776,11 +776,13 @@ gld${EMULATION_NAME}_check_ld_so_conf (const char *name, int force)
 
       info.path = NULL;
       info.len = info.alloc = 0;
-      tmppath = concat (ld_sysroot, "${prefix}/etc/ld.so.conf", NULL);
+      tmppath = concat (ld_sysroot, "${prefix}/etc/ld.so.conf",
+			(const char *) NULL);
       if (!gld${EMULATION_NAME}_parse_ld_so_conf (&info, tmppath))
 	{
 	  free (tmppath);
-	  tmppath = concat (ld_sysroot, "/etc/ld.so.conf", NULL);
+	  tmppath = concat (ld_sysroot, "/etc/ld.so.conf",
+			    (const char *) NULL);
 	  gld${EMULATION_NAME}_parse_ld_so_conf (&info, tmppath);
 	}
       free (tmppath);
@@ -936,10 +938,11 @@ gld${EMULATION_NAME}_write_build_id_section (bfd *abfd)
   Elf_External_Note *e_note;
 
   asec = info->sec;
-  if (asec->output_section == NULL)
+  if (bfd_is_abs_section (asec->output_section))
     {
-      einfo (_("%P: .note.gnu.build-id section missing"));
-      return FALSE;
+      einfo (_("%P: warning: .note.gnu.build-id section discarded,"
+	       " --build-id ignored.\n"));
+      return TRUE;
     }
   i_shdr = &elf_section_data (asec->output_section)->this_hdr;
 
@@ -1061,7 +1064,7 @@ gld${EMULATION_NAME}_after_open (void)
 					   | SEC_READONLY | SEC_DATA);
 	  if (s != NULL && bfd_set_section_alignment (abfd, s, 2))
 	    {
-	      struct elf_obj_tdata *t = elf_tdata (output_bfd);
+	      struct elf_obj_tdata *t = elf_tdata (link_info.output_bfd);
 	      struct build_id_info *b = xmalloc (sizeof *b);
 	      b->style = link_info.emit_note_gnu_build_id;
 	      b->sec = s;
@@ -1124,7 +1127,7 @@ gld${EMULATION_NAME}_after_open (void)
      loop.  */
   if (!link_info.executable)
     return;
-  needed = bfd_elf_get_needed_list (output_bfd, &link_info);
+  needed = bfd_elf_get_needed_list (link_info.output_bfd, &link_info);
   for (l = needed; l != NULL; l = l->next)
     {
       struct bfd_link_needed_list *ll;
@@ -1228,7 +1231,7 @@ fi
 if [ "x${USE_LIBPATH}" = xyes ] ; then
 fragment <<EOF
 	  found = 0;
-	  rp = bfd_elf_get_runpath_list (output_bfd, &link_info);
+	  rp = bfd_elf_get_runpath_list (link_info.output_bfd, &link_info);
 	  for (; !found && rp != NULL; rp = rp->next)
 	    {
 	      char *tmpname = gld${EMULATION_NAME}_add_sysroot (rp->name);
@@ -1319,7 +1322,8 @@ gld${EMULATION_NAME}_find_exp_assignment (etree_type *exp)
 	 will do no harm.  */
       if (strcmp (exp->assign.dst, ".") != 0)
 	{
-	  if (!bfd_elf_record_link_assignment (output_bfd, &link_info,
+	  if (!bfd_elf_record_link_assignment (link_info.output_bfd,
+					       &link_info,
 					       exp->assign.dst, provide,
 					       exp->assign.hidden))
 	    einfo ("%P%F: failed to record assignment to %s: %E\n",
@@ -1388,7 +1392,7 @@ gld${EMULATION_NAME}_before_allocation (void)
   asection *sinterp;
 
   if (link_info.hash->type == bfd_link_elf_hash_table)
-    _bfd_elf_tls_setup (output_bfd, &link_info);
+    _bfd_elf_tls_setup (link_info.output_bfd, &link_info);
 
   /* If we are going to make any variable assignments, we need to let
      the ELF backend know about them in case the variables are
@@ -1401,7 +1405,7 @@ gld${EMULATION_NAME}_before_allocation (void)
   if (rpath == NULL)
     rpath = (const char *) getenv ("LD_RUN_PATH");
   if (! (bfd_elf_size_dynamic_sections
-	 (output_bfd, command_line.soname, rpath,
+	 (link_info.output_bfd, command_line.soname, rpath,
 	  command_line.filter_shlib,
 	  (const char * const *) command_line.auxiliary_filters,
 	  &link_info, &sinterp, lang_elf_version_info)))
@@ -1469,7 +1473,7 @@ ${ELF_INTERPRETER_SET_DEFAULT}
 
   before_allocation_default ();
 
-  if (!bfd_elf_size_dynsym_hash_dynstr (output_bfd, &link_info))
+  if (!bfd_elf_size_dynsym_hash_dynstr (link_info.output_bfd, &link_info))
     einfo ("%P%F: failed to set dynamic section sizes: %E\n");
 }
 
@@ -1512,8 +1516,9 @@ gld${EMULATION_NAME}_open_dynamic_archive
   /* Try the .so extension first.  If that fails build a new filename
      using EXTRA_SHLIB_EXTENSION.  */
   if (! ldfile_try_open_bfd (string, entry))
-    sprintf (string, "%s/lib%s%s%s", search->name,
-	     filename, arch, EXTRA_SHLIB_EXTENSION);
+    {
+      sprintf (string, "%s/lib%s%s%s", search->name,
+	       filename, arch, EXTRA_SHLIB_EXTENSION);
 #endif
 
   if (! ldfile_try_open_bfd (string, entry))
@@ -1521,6 +1526,9 @@ gld${EMULATION_NAME}_open_dynamic_archive
       free (string);
       return FALSE;
     }
+#ifdef EXTRA_SHLIB_EXTENSION
+    }
+#endif
 
   entry->filename = string;
 
@@ -1575,7 +1583,7 @@ output_rel_find (asection *sec, int isdyn)
        lookup != NULL;
        lookup = lookup->next)
     {
-      if (lookup->constraint != -1
+      if (lookup->constraint >= 0
 	  && CONST_STRNEQ (lookup->name, ".rel"))
 	{
 	  int lookrela = lookup->name[4] == 'a';
@@ -1707,7 +1715,7 @@ gld${EMULATION_NAME}_place_orphan (asection *s)
       if (os != NULL
 	  && (os->bfd_section == NULL
 	      || os->bfd_section->flags == 0
-	      || (_bfd_elf_match_sections_by_type (output_bfd,
+	      || (_bfd_elf_match_sections_by_type (link_info.output_bfd,
 						   os->bfd_section,
 						   s->owner, s)
 		  && ((s->flags ^ os->bfd_section->flags)
@@ -1798,10 +1806,11 @@ gld${EMULATION_NAME}_place_orphan (asection *s)
   /* Choose a unique name for the section.  This will be needed if the
      same section name appears in the input file with different
      loadable or allocatable characteristics.  */
-  if (bfd_get_section_by_name (output_bfd, secname) != NULL)
+  if (bfd_get_section_by_name (link_info.output_bfd, secname) != NULL)
     {
       static int count = 1;
-      secname = bfd_get_unique_section_name (output_bfd, secname, &count);
+      secname = bfd_get_unique_section_name (link_info.output_bfd,
+					     secname, &count);
       if (secname == NULL)
 	einfo ("%F%P: place_orphan failed: %E\n");
     }
@@ -1819,7 +1828,8 @@ fragment <<EOF
 static void
 gld${EMULATION_NAME}_finish (void)
 {
-  bfd_boolean need_layout = bfd_elf_discard_info (output_bfd, &link_info);
+  bfd_boolean need_layout = bfd_elf_discard_info (link_info.output_bfd,
+						  &link_info);
 
   gld${EMULATION_NAME}_map_segments (need_layout);
   finish_default ();
@@ -1861,7 +1871,7 @@ if test -n "$GENERATE_PIE_SCRIPT" ; then
 if test -n "$GENERATE_COMBRELOC_SCRIPT" ; then
 echo '  ; else if (link_info.pie && link_info.combreloc' >> e${EMULATION_NAME}.c
 echo '             && link_info.relro' >> e${EMULATION_NAME}.c
-echo '             && (link_info.flags & DT_BIND_NOW)) return' >> e${EMULATION_NAME}.c
+echo '             && (link_info.flags & DF_BIND_NOW)) return' >> e${EMULATION_NAME}.c
 sed $sc ldscripts/${EMULATION_NAME}.xdw			>> e${EMULATION_NAME}.c
 echo '  ; else if (link_info.pie && link_info.combreloc) return' >> e${EMULATION_NAME}.c
 sed $sc ldscripts/${EMULATION_NAME}.xdc			>> e${EMULATION_NAME}.c
@@ -1873,7 +1883,7 @@ if test -n "$GENERATE_SHLIB_SCRIPT" ; then
 if test -n "$GENERATE_COMBRELOC_SCRIPT" ; then
 echo '  ; else if (link_info.shared && link_info.combreloc' >> e${EMULATION_NAME}.c
 echo '             && link_info.relro' >> e${EMULATION_NAME}.c
-echo '             && (link_info.flags & DT_BIND_NOW)) return' >> e${EMULATION_NAME}.c
+echo '             && (link_info.flags & DF_BIND_NOW)) return' >> e${EMULATION_NAME}.c
 sed $sc ldscripts/${EMULATION_NAME}.xsw			>> e${EMULATION_NAME}.c
 echo '  ; else if (link_info.shared && link_info.combreloc) return' >> e${EMULATION_NAME}.c
 sed $sc ldscripts/${EMULATION_NAME}.xsc			>> e${EMULATION_NAME}.c
@@ -1883,7 +1893,7 @@ sed $sc ldscripts/${EMULATION_NAME}.xs			>> e${EMULATION_NAME}.c
 fi
 if test -n "$GENERATE_COMBRELOC_SCRIPT" ; then
 echo '  ; else if (link_info.combreloc && link_info.relro' >> e${EMULATION_NAME}.c
-echo '             && (link_info.flags & DT_BIND_NOW)) return' >> e${EMULATION_NAME}.c
+echo '             && (link_info.flags & DF_BIND_NOW)) return' >> e${EMULATION_NAME}.c
 sed $sc ldscripts/${EMULATION_NAME}.xw			>> e${EMULATION_NAME}.c
 echo '  ; else if (link_info.combreloc) return'		>> e${EMULATION_NAME}.c
 sed $sc ldscripts/${EMULATION_NAME}.xc			>> e${EMULATION_NAME}.c
@@ -1917,7 +1927,7 @@ if test -n "$GENERATE_PIE_SCRIPT" ; then
 if test -n "$GENERATE_COMBRELOC_SCRIPT" ; then
 fragment <<EOF
   else if (link_info.pie && link_info.combreloc
-	   && link_info.relro && (link_info.flags & DT_BIND_NOW))
+	   && link_info.relro && (link_info.flags & DF_BIND_NOW))
     return "ldscripts/${EMULATION_NAME}.xdw";
   else if (link_info.pie && link_info.combreloc)
     return "ldscripts/${EMULATION_NAME}.xdc";
@@ -1932,7 +1942,7 @@ if test -n "$GENERATE_SHLIB_SCRIPT" ; then
 if test -n "$GENERATE_COMBRELOC_SCRIPT" ; then
 fragment <<EOF
   else if (link_info.shared && link_info.combreloc
-	   && link_info.relro && (link_info.flags & DT_BIND_NOW))
+	   && link_info.relro && (link_info.flags & DF_BIND_NOW))
     return "ldscripts/${EMULATION_NAME}.xsw";
   else if (link_info.shared && link_info.combreloc)
     return "ldscripts/${EMULATION_NAME}.xsc";
@@ -1946,7 +1956,7 @@ fi
 if test -n "$GENERATE_COMBRELOC_SCRIPT" ; then
 fragment <<EOF
   else if (link_info.combreloc && link_info.relro
-	   && (link_info.flags & DT_BIND_NOW))
+	   && (link_info.flags & DF_BIND_NOW))
     return "ldscripts/${EMULATION_NAME}.xw";
   else if (link_info.combreloc)
     return "ldscripts/${EMULATION_NAME}.xc";
@@ -2192,54 +2202,83 @@ fragment <<EOF
 static void
 gld${EMULATION_NAME}_list_options (FILE * file)
 {
-  fprintf (file, _("  --build-id[=STYLE]\tGenerate build ID note\n"));
+  fprintf (file, _("\
+  --build-id[=STYLE]          Generate build ID note\n"));
 EOF
 
 if test x"$GENERATE_SHLIB_SCRIPT" = xyes; then
 fragment <<EOF
-  fprintf (file, _("  -Bgroup\t\tSelects group name lookup rules for DSO\n"));
-  fprintf (file, _("  --disable-new-dtags\tDisable new dynamic tags\n"));
-  fprintf (file, _("  --enable-new-dtags\tEnable new dynamic tags\n"));
-  fprintf (file, _("  --eh-frame-hdr\tCreate .eh_frame_hdr section\n"));
-  fprintf (file, _("  --hash-style=STYLE\tSet hash style to sysv, gnu or both\n"));
-  fprintf (file, _("  -z combreloc\t\tMerge dynamic relocs into one section and sort\n"));
-  fprintf (file, _("  -z defs\t\tReport unresolved symbols in object files.\n"));
-  fprintf (file, _("  -z execstack\t\tMark executable as requiring executable stack\n"));
-  fprintf (file, _("  -z initfirst\t\tMark DSO to be initialized first at runtime\n"));
-  fprintf (file, _("  -z interpose\t\tMark object to interpose all DSOs but executable\n"));
-  fprintf (file, _("  -z lazy\t\tMark object lazy runtime binding (default)\n"));
-  fprintf (file, _("  -z loadfltr\t\tMark object requiring immediate process\n"));
-  fprintf (file, _("  -z muldefs\t\tAllow multiple definitions\n"));
-  fprintf (file, _("  -z nocombreloc\tDon't merge dynamic relocs into one section\n"));
-  fprintf (file, _("  -z nocopyreloc\tDon't create copy relocs\n"));
-  fprintf (file, _("  -z nodefaultlib\tMark object not to use default search paths\n"));
-  fprintf (file, _("  -z nodelete\t\tMark DSO non-deletable at runtime\n"));
-  fprintf (file, _("  -z nodlopen\t\tMark DSO not available to dlopen\n"));
-  fprintf (file, _("  -z nodump\t\tMark DSO not available to dldump\n"));
-  fprintf (file, _("  -z noexecstack\tMark executable as not requiring executable stack\n"));
+  fprintf (file, _("\
+  -Bgroup                     Selects group name lookup rules for DSO\n"));
+  fprintf (file, _("\
+  --disable-new-dtags         Disable new dynamic tags\n"));
+  fprintf (file, _("\
+  --enable-new-dtags          Enable new dynamic tags\n"));
+  fprintf (file, _("\
+  --eh-frame-hdr              Create .eh_frame_hdr section\n"));
+  fprintf (file, _("\
+  --hash-style=STYLE          Set hash style to sysv, gnu or both\n"));
+  fprintf (file, _("\
+  -z combreloc                Merge dynamic relocs into one section and sort\n"));
+  fprintf (file, _("\
+  -z defs                     Report unresolved symbols in object files.\n"));
+  fprintf (file, _("\
+  -z execstack                Mark executable as requiring executable stack\n"));
+  fprintf (file, _("\
+  -z initfirst                Mark DSO to be initialized first at runtime\n"));
+  fprintf (file, _("\
+  -z interpose                Mark object to interpose all DSOs but executable\n"));
+  fprintf (file, _("\
+  -z lazy                     Mark object lazy runtime binding (default)\n"));
+  fprintf (file, _("\
+  -z loadfltr                 Mark object requiring immediate process\n"));
+  fprintf (file, _("\
+  -z muldefs                  Allow multiple definitions\n"));
+  fprintf (file, _("\
+  -z nocombreloc              Don't merge dynamic relocs into one section\n"));
+  fprintf (file, _("\
+  -z nocopyreloc              Don't create copy relocs\n"));
+  fprintf (file, _("\
+  -z nodefaultlib             Mark object not to use default search paths\n"));
+  fprintf (file, _("\
+  -z nodelete                 Mark DSO non-deletable at runtime\n"));
+  fprintf (file, _("\
+  -z nodlopen                 Mark DSO not available to dlopen\n"));
+  fprintf (file, _("\
+  -z nodump                   Mark DSO not available to dldump\n"));
+  fprintf (file, _("\
+  -z noexecstack              Mark executable as not requiring executable stack\n"));
 EOF
 
   if test -n "$COMMONPAGESIZE"; then
 fragment <<EOF
-  fprintf (file, _("  -z norelro\t\tDon't create RELRO program header\n"));
+  fprintf (file, _("\
+  -z norelro                  Don't create RELRO program header\n"));
 EOF
   fi
 
 fragment <<EOF
-  fprintf (file, _("  -z now\t\tMark object non-lazy runtime binding\n"));
-  fprintf (file, _("  -z origin\t\tMark object requiring immediate \$ORIGIN processing\n\t\t\t  at runtime\n"));
+  fprintf (file, _("\
+  -z now                      Mark object non-lazy runtime binding\n"));
+  fprintf (file, _("\
+  -z origin                   Mark object requiring immediate \$ORIGIN\n\
+                                processing at runtime\n"));
 EOF
 
   if test -n "$COMMONPAGESIZE"; then
 fragment <<EOF
-  fprintf (file, _("  -z relro\t\tCreate RELRO program header\n"));
+  fprintf (file, _("\
+  -z relro                    Create RELRO program header\n"));
 EOF
   fi
 
 fragment <<EOF
-  fprintf (file, _("  -z max-page-size=SIZE\tSet maximum page size to SIZE\n"));
-  fprintf (file, _("  -z common-page-size=SIZE\n\t\t\tSet common page size to SIZE\n"));
-  fprintf (file, _("  -z KEYWORD\t\tIgnored for Solaris compatibility\n"));
+  fprintf (file, _("\
+  -z max-page-size=SIZE       Set maximum page size to SIZE\n"));
+  fprintf (file, _("\
+  -z common-page-size=SIZE    Set common page size to SIZE\n"));
+  fprintf (file, _("\
+  -z KEYWORD                  Ignored for Solaris compatibility\n"));
 EOF
 fi
 
