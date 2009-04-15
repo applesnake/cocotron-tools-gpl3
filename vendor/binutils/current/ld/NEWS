@@ -1,4 +1,23 @@
 -*- text -*-
+
+Changes in 2.19:
+
+* Linker scripts support a new INSERT command that makes it easier to
+  augment the default script.
+
+* Linker script input section filespecs may now specify a file within an
+  archive by writing "archive:file".
+
+* The --sort-common switch now has an optional argument which specifies the
+  direction of sorting.
+
+* The M68K linker now supports multiple GOT generation schemes controlled via
+  the --got=<type> command line option.
+
+* The ARM EABI linker will now generate stubs for function calls to symbols
+  that are too far away.  The placement of the stubs is controlled by a new
+  linker command line option: --stub-group-size=N.
+
 Changes in 2.18:
 
 * Linker sources now released under version 3 of the GNU General Public
@@ -297,6 +316,11 @@ Changes in version 2.6:
 of most ELF section names), the linker will automatically define symbols
 __start_SECNAME and __stop_SECNAME, where SECNAME is the section name, at the
 beginning and the end of the section.  This is used by glibc.
+
+  Addendum: Current versions of the linker (at least for version 2.18 onwards
+and possibly much earlier as well) place two restrictions on this feature:  The
+symbols are only implemented for orphaned sections, not for explicitly placed
+sections and they are PROVIDEd rather than being defined.
 
 * When an ELF section named .gnu.warning is encountered in an input file, the
 contents of the section are displayed as an error message, and the section is

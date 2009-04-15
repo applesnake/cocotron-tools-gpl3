@@ -29,6 +29,10 @@ if { [istarget spu*-*-*] } {
     set LDFLAGS "$LDFLAGS --local-store 0:0"
 }
 
+if { [is_remote host] } then {
+    remote_download host merge.ld
+}
+
 set test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
 foreach t $test_list {
     # We need to strip the ".d", but can leave the dirname.
@@ -46,6 +50,13 @@ if { [istarget *-*-linux*] } {
 	    "-shared tmpdir/libweakdyn1a.so -Tweak-dyn-1.ld" "" {weak-dyn-1b.s}
 	    {{readelf {--relocs --wide} weak-dyn-1.rd}}
 	    "libweakdyn1b.so"}
+    }
+}
+
+if { [check_gc_sections_available] } {
+    run_ld_link_tests {
+	{"--gc-sections on tls variable"
+	    "--gc-section" "" {tls_gc.s} {} "tls_gc"}
     }
 }
 

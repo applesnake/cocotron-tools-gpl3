@@ -10,7 +10,7 @@ rm -f e${EMULATION_NAME}.c
 (echo;echo;echo;echo;echo)>e${EMULATION_NAME}.c # there, now line numbers match ;-)
 fragment <<EOF
 /* Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005, 2006, 2007 Free Software Foundation, Inc.
+   2005, 2006, 2007, 2008 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -286,6 +286,8 @@ static definfo init[] =
   D(ImageBase,"__image_base__", NT_EXE_IMAGE_BASE),
 #define DLLOFF 1
   {&dll, sizeof(dll), 0, "__dll__", 0},
+#define MSIMAGEBASEOFF	2
+  D(ImageBase, U ("__ImageBase"), NT_EXE_IMAGE_BASE),
   D(SectionAlignment,"__section_alignment__", PE_DEF_SECTION_ALIGNMENT),
   D(FileAlignment,"__file_alignment__", PE_DEF_FILE_ALIGNMENT),
   D(MajorOperatingSystemVersion,"__major_os_version__", 4),
@@ -374,6 +376,8 @@ set_pe_name (char *name, long val)
 	{
 	  init[i].value = val;
 	  init[i].inited = 1;
+	  if (strcmp (name,"__image_base__") == 0)
+	    set_pe_name (U ("__ImageBase"), val);
 	  return;
 	}
     }
@@ -708,6 +712,7 @@ gld_${EMULATION_NAME}_set_symbols (void)
 #endif
       else
 	init[IMAGEBASEOFF].value = NT_EXE_IMAGE_BASE;
+      init[MSIMAGEBASEOFF].value = init[IMAGEBASEOFF].value;
     }
 
   /* Don't do any symbol assignments if this is a relocatable link.  */
@@ -880,7 +885,7 @@ make_import_fixup (arelent *rel, asection *s)
 
   if (pe_dll_extra_pe_debug)
     printf ("arelent: %s@%#lx: add=%li\n", sym->name,
-	    (long) rel->address, (long) rel->addend);
+	    (unsigned long) rel->address, (long) rel->addend);
 
   if (! bfd_get_section_contents (s->owner, s, addend, rel->address, sizeof (addend)))
     einfo (_("%C: Cannot get section contents - auto-import exception\n"),
@@ -917,15 +922,32 @@ pe_find_data_imports (void)
 	    {
 	      bfd *b = sym->u.def.section->owner;
 	      asymbol **symbols;
-	      int nsyms, symsize, i;
+	      int nsyms, i;
 
 	      if (link_info.pei386_auto_import == -1)
-		info_msg (_("Info: resolving %s by linking to %s (auto-import)\n"),
-			  undef->root.string, buf);
+		{
+		  static bfd_boolean warned = FALSE;
 
-	      symsize = bfd_get_symtab_upper_bound (b);
-	      symbols = (asymbol **) xmalloc (symsize);
-	      nsyms = bfd_canonicalize_symtab (b, symbols);
+		  info_msg (_("Info: resolving %s by linking to %s (auto-import)\n"),
+			    undef->root.string, buf);
+
+		  /* PR linker/4844.  */
+		  if (! warned)
+		    {
+		      warned = TRUE;
+		      einfo (_("%P: warning: auto-importing has been activated without --enable-auto-import specified on the command line.\n\
+This should work unless it involves constant data structures referencing symbols from auto-imported DLLs.\n"));
+		    }
+		}
+
+	      if (!bfd_generic_link_read_symbols (b))
+		{
+		  einfo (_("%B%F: could not read symbols: %E\n"), b);
+		  return;
+		}
+
+	      symbols = bfd_get_outsymbols (b);
+	      nsyms = bfd_get_symcount (b);
 
 	      for (i = 0; i < nsyms; i++)
 		{
@@ -991,18 +1013,20 @@ gld_${EMULATION_NAME}_after_open (void)
      FIXME: This should be done via a function, rather than by
      including an internal BFD header.  */
 
-  if (coff_data (output_bfd) == NULL || coff_data (output_bfd)->pe == 0)
-    einfo (_("%F%P: cannot perform PE operations on non PE output file '%B'.\n"), output_bfd);
+  if (coff_data (link_info.output_bfd) == NULL
+      || coff_data (link_info.output_bfd)->pe == 0)
+    einfo (_("%F%P: cannot perform PE operations on non PE output file '%B'.\n"),
+	   link_info.output_bfd);
 
-  pe_data (output_bfd)->pe_opthdr = pe;
-  pe_data (output_bfd)->dll = init[DLLOFF].value;
-  pe_data (output_bfd)->real_flags |= real_flags;
+  pe_data (link_info.output_bfd)->pe_opthdr = pe;
+  pe_data (link_info.output_bfd)->dll = init[DLLOFF].value;
+  pe_data (link_info.output_bfd)->real_flags |= real_flags;
 
 #ifdef DLL_SUPPORT
   if (pe_enable_stdcall_fixup) /* -1=warn or 1=disable */
     pe_fixup_stdcalls ();
 
-  pe_process_import_defs (output_bfd, & link_info);
+  pe_process_import_defs (link_info.output_bfd, &link_info);
 
   pe_find_data_imports ();
 
@@ -1011,17 +1035,17 @@ gld_${EMULATION_NAME}_after_open (void)
     || defined (TARGET_IS_arm_epoc_pe) \
     || defined (TARGET_IS_arm_wince_pe)
   if (!link_info.relocatable)
-    pe_dll_build_sections (output_bfd, &link_info);
+    pe_dll_build_sections (link_info.output_bfd, &link_info);
   else
-    pe_exe_build_sections (output_bfd, &link_info);
+    pe_exe_build_sections (link_info.output_bfd, &link_info);
 #else
   if (link_info.shared)
-    pe_dll_build_sections (output_bfd, &link_info);
+    pe_dll_build_sections (link_info.output_bfd, &link_info);
 #endif
 #endif /* DLL_SUPPORT */
 
 #if defined(TARGET_IS_armpe) || defined(TARGET_IS_arm_epoc_pe) || defined(TARGET_IS_arm_wince_pe)
-  if (strstr (bfd_get_target (output_bfd), "arm") == NULL)
+  if (strstr (bfd_get_target (link_info.output_bfd), "arm") == NULL)
     {
       /* The arm backend needs special fields in the output hash structure.
 	 These will only be created if the output format is an arm format,
@@ -1075,26 +1099,22 @@ gld_${EMULATION_NAME}_after_open (void)
 		for (sec = is->the_bfd->sections; sec; sec = sec->next)
 		  {
 		    int i;
-		    long symsize;
 		    long relsize;
 		    asymbol **symbols;
 		    arelent **relocs;
 		    int nrelocs;
 
-		    symsize = bfd_get_symtab_upper_bound (is->the_bfd);
-		    if (symsize < 1)
-		      break;
 		    relsize = bfd_get_reloc_upper_bound (is->the_bfd, sec);
 		    if (relsize < 1)
 		      break;
 
-		    symbols = (asymbol **) xmalloc (symsize);
-		    symsize = bfd_canonicalize_symtab (is->the_bfd, symbols);
-		    if (symsize < 0)
+		    if (!bfd_generic_link_read_symbols (is->the_bfd))
 		      {
-			einfo ("%X%P: unable to process symbols: %E");
+			einfo (_("%B%F: could not read symbols: %E\n"),
+			       is->the_bfd);
 			return;
 		      }
+		    symbols = bfd_get_outsymbols (is->the_bfd);
 
 		    relocs = (arelent **) xmalloc ((size_t) relsize);
 		    nrelocs = bfd_canonicalize_reloc (is->the_bfd, sec,
@@ -1102,7 +1122,7 @@ gld_${EMULATION_NAME}_after_open (void)
 		    if (nrelocs < 0)
 		      {
 			free (relocs);
-			einfo ("%X%P: unable to process relocs: %E");
+			einfo ("%X%P: unable to process relocs: %E\n");
 			return;
 		      }
 
@@ -1290,16 +1310,20 @@ gld_${EMULATION_NAME}_after_open (void)
 
 	    if (is_imp && stub_sec)
 	      {
-		long symsize;
 		asymbol **symbols;
-		long src_count;
+		long nsyms, src_count;
 		struct bfd_link_hash_entry * blhe;
 
-		symsize = bfd_get_symtab_upper_bound (is->the_bfd);
-		symbols = xmalloc (symsize);
-		symsize = bfd_canonicalize_symtab (is->the_bfd, symbols);
+		if (!bfd_generic_link_read_symbols (is->the_bfd))
+		  {
+		    einfo (_("%B%F: could not read symbols: %E\n"),
+			   is->the_bfd);
+		    return;
+		  }
+		symbols = bfd_get_outsymbols (is->the_bfd);
+		nsyms = bfd_get_symcount (is->the_bfd);
 
-		for (src_count = 0; src_count < symsize; src_count++)
+		for (src_count = 0; src_count < nsyms; src_count++)
 		  {
 		    if (symbols[src_count]->section->id == stub_sec->id)
 		      {
@@ -1316,7 +1340,6 @@ gld_${EMULATION_NAME}_after_open (void)
 			  stub_sec->flags |= SEC_EXCLUDE;
 		      }
 		  }
-		free (symbols);
 	      }
 	  }
       }
@@ -1357,7 +1380,7 @@ gld_${EMULATION_NAME}_before_allocation (void)
 	    (is->the_bfd, & link_info, support_old_code))
 	  {
 	    /* xgettext:c-format */
-	    einfo (_("Errors encountered processing file %s for interworking"),
+	    einfo (_("Errors encountered processing file %s for interworking\n"),
 		   is->filename);
 	  }
       }
@@ -1434,13 +1457,14 @@ gld_${EMULATION_NAME}_unrecognized_file (lang_input_statement_type *entry ATTRIB
 
 	  if (pe_def_file->base_address != (bfd_vma)(-1))
 	    {
-	      pe.ImageBase =
-		pe_data (output_bfd)->pe_opthdr.ImageBase =
-		init[IMAGEBASEOFF].value = pe_def_file->base_address;
+	      pe.ImageBase
+		= pe_data (link_info.output_bfd)->pe_opthdr.ImageBase
+		= init[IMAGEBASEOFF].value
+		= pe_def_file->base_address;
 	      init[IMAGEBASEOFF].inited = 1;
 	      if (image_base_statement)
-		image_base_statement->exp =
-		  exp_assop ('=', "__image_base__", exp_intop (pe.ImageBase));
+		image_base_statement->exp = exp_assop ('=', "__image_base__",
+						       exp_intop (pe.ImageBase));
 	    }
 
 	  if (pe_def_file->stack_reserve != -1
@@ -1514,7 +1538,7 @@ gld_${EMULATION_NAME}_finish (void)
 	  /* Special procesing is required for a Thumb entry symbol.  The
 	     bottom bit of its address must be set.  */
 	  val = (h->u.def.value
-		 + bfd_get_section_vma (output_bfd,
+		 + bfd_get_section_vma (link_info.output_bfd,
 					h->u.def.section->output_section)
 		 + h->u.def.section->output_offset);
 
@@ -1533,7 +1557,7 @@ gld_${EMULATION_NAME}_finish (void)
 	  entry_symbol.name = buffer;
 	}
       else
-	einfo (_("%P: warning: connot find thumb start symbol %s\n"), thumb_entry_symbol);
+	einfo (_("%P: warning: cannot find thumb start symbol %s\n"), thumb_entry_symbol);
     }
 #endif /* defined(TARGET_IS_armpe) || defined(TARGET_IS_arm_epoc_pe) || defined(TARGET_IS_arm_wince_pe) */
 
@@ -1546,7 +1570,7 @@ gld_${EMULATION_NAME}_finish (void)
 #endif
     )
     {
-      pe_dll_fill_sections (output_bfd, &link_info);
+      pe_dll_fill_sections (link_info.output_bfd, &link_info);
       if (pe_implib_filename)
 	pe_dll_generate_implib (pe_def_file, pe_implib_filename);
     }
@@ -1554,7 +1578,7 @@ gld_${EMULATION_NAME}_finish (void)
   /* ARM doesn't need relocs.  */
   else
     {
-      pe_exe_fill_sections (output_bfd, &link_info);
+      pe_exe_fill_sections (link_info.output_bfd, &link_info);
     }
 #endif
 
@@ -1564,7 +1588,7 @@ gld_${EMULATION_NAME}_finish (void)
 
   /* I don't know where .idata gets set as code, but it shouldn't be.  */
   {
-    asection *asec = bfd_get_section_by_name (output_bfd, ".idata");
+    asection *asec = bfd_get_section_by_name (link_info.output_bfd, ".idata");
 
     if (asec)
       {
@@ -1702,10 +1726,11 @@ gld_${EMULATION_NAME}_place_orphan (asection *s)
       /* Choose a unique name for the section.  This will be needed if the
 	 same section name appears in the input file with different
 	 loadable or allocatable characteristics.  */
-      if (bfd_get_section_by_name (output_bfd, secname) != NULL)
+      if (bfd_get_section_by_name (link_info.output_bfd, secname) != NULL)
 	{
 	  static int count = 1;
-	  secname = bfd_get_unique_section_name (output_bfd, secname, &count);
+	  secname = bfd_get_unique_section_name (link_info.output_bfd,
+						 secname, &count);
 	  if (secname == NULL)
 	    einfo ("%F%P: place_orphan failed: %E\n");
 	}
@@ -1891,6 +1916,10 @@ echo '  ; else if (!config.text_read_only) return'	>> e${EMULATION_NAME}.c
 sed $sc ldscripts/${EMULATION_NAME}.xbn			>> e${EMULATION_NAME}.c
 echo '  ; else if (!config.magic_demand_paged) return'	>> e${EMULATION_NAME}.c
 sed $sc ldscripts/${EMULATION_NAME}.xn			>> e${EMULATION_NAME}.c
+if test -n "$GENERATE_AUTO_IMPORT_SCRIPT" ; then
+echo '  ; else if (link_info.pei386_auto_import == 1) return'	>> e${EMULATION_NAME}.c
+sed $sc ldscripts/${EMULATION_NAME}.xa			>> e${EMULATION_NAME}.c
+fi
 echo '  ; else return'					>> e${EMULATION_NAME}.c
 sed $sc ldscripts/${EMULATION_NAME}.x			>> e${EMULATION_NAME}.c
 echo '; }'						>> e${EMULATION_NAME}.c
