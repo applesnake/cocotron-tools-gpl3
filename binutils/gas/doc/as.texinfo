@@ -189,6 +189,9 @@ section entitled ``GNU Free Documentation License''.
 * Symbols::                     Symbols
 * Expressions::                 Expressions
 * Pseudo Ops::                  Assembler Directives
+@ifset ELF
+* Object Attributes::           Object Attributes
+@end ifset
 * Machine Dependencies::        Machine Dependent Features
 * Reporting Bugs::              Reporting Bugs
 * Acknowledgements::            Who Did What
@@ -225,7 +228,7 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
 @c to be limited to one line for the header.
 @smallexample
 @c man begin SYNOPSIS
-@value{AS} [@b{-a}[@b{cdhlns}][=@var{file}]] [@b{--alternate}] [@b{-D}]
+@value{AS} [@b{-a}[@b{cdghlns}][=@var{file}]] [@b{--alternate}] [@b{-D}]
  [@b{--debug-prefix-map} @var{old}=@var{new}]
  [@b{--defsym} @var{sym}=@var{val}] [@b{-f}] [@b{-g}] [@b{--gstabs}]
  [@b{--gstabs+}] [@b{--gdwarf-2}] [@b{--help}] [@b{-I} @var{dir}] [@b{-J}]
@@ -290,7 +293,9 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
    [@b{-O}|@b{-n}|@b{-N}]
 @end ifset
 @ifset H8
-@c Renesas family chips have no machine-dependent assembler options
+
+@emph{Target H8/300 options:}
+   [-h-tick-hex]
 @end ifset
 @ifset HPPA
 @c HPPA has no machine-dependent assembler options (yet).
@@ -299,7 +304,7 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
 
 @emph{Target i386 options:}
    [@b{--32}|@b{--64}] [@b{-n}]
-   [@b{-march}=@var{CPU}] [@b{-mtune}=@var{CPU}] 
+   [@b{-march}=@var{CPU}[+@var{EXTENSION}@dots{}]] [@b{-mtune}=@var{CPU}] 
 @end ifset
 @ifset I960
 
@@ -328,7 +333,7 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
 @ifset M32C
 
 @emph{Target M32C options:}
-   [@b{-m32c}|@b{-m16c}]
+   [@b{-m32c}|@b{-m16c}] [-relax] [-h-tick-hex]
 @end ifset
 @ifset M32R
 
@@ -406,7 +411,7 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
    [@b{-mpwrx}|@b{-mpwr2}|@b{-mpwr}|@b{-m601}|@b{-mppc}|@b{-mppc32}|@b{-m603}|@b{-m604}|
     @b{-m403}|@b{-m405}|@b{-mppc64}|@b{-m620}|@b{-mppc64bridge}|@b{-mbooke}|
     @b{-mbooke32}|@b{-mbooke64}]
-   [@b{-mcom}|@b{-many}|@b{-maltivec}] [@b{-memb}]
+   [@b{-mcom}|@b{-many}|@b{-maltivec}|@b{-mvsx}] [@b{-memb}]
    [@b{-mregnames}|@b{-mno-regnames}]
    [@b{-mrelocatable}|@b{-mrelocatable-lib}]
    [@b{-mlittle}|@b{-mlittle-endian}|@b{-mbig}|@b{-mbig-endian}]
@@ -459,7 +464,7 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
 @table @gcctabopt
 @include at-file.texi
 
-@item -a[cdhlmns]
+@item -a[cdghlmns]
 Turn on listings, in any of a variety of ways:
 
 @table @gcctabopt
@@ -468,6 +473,9 @@ omit false conditionals
 
 @item -ad
 omit debugging directives
+
+@item -ag
+include general information, like @value{AS} version and options passed
 
 @item -ah
 include high-level source
@@ -758,6 +766,12 @@ Assemble M32C instructions.
 
 @item -m16c
 Assemble M16C instructions (the default).
+
+@item -relax
+Enable support for link-time relaxations.
+
+@item -h-tick-hex
+Support H'00 style hex constants in addition to 0x00 style.
 
 @end table
 @end ifset
@@ -1182,6 +1196,10 @@ Enable or disable all assembler transformations of Xtensa instructions.
 The default is @option{--transform};
 @option{--no-transform} should be used only in the rare cases when the
 instructions must be exactly as specified in the assembly source.
+
+@item --rename-section @var{oldname}=@var{newname}
+When generating output sections, rename the @var{oldname} section to
+@var{newname}.
 @end table
 @end ifset
 
@@ -1569,7 +1587,7 @@ assembler.)
 @c man end
 
 @menu
-* a::             -a[cdhlns] enable listings
+* a::             -a[cdghlns] enable listings
 * alternate::     --alternate enable alternate macro syntax
 * D::             -D for compatibility
 * f::             -f to work faster
@@ -1595,11 +1613,12 @@ assembler.)
 @end menu
 
 @node a
-@section Enable Listings: @option{-a[cdhlns]}
+@section Enable Listings: @option{-a[cdghlns]}
 
 @kindex -a
 @kindex -ac
 @kindex -ad
+@kindex -ag
 @kindex -ah
 @kindex -al
 @kindex -an
@@ -1616,6 +1635,9 @@ You can use other letters to select specific options for the list:
 High-level listings require that a compiler debugging option like
 @samp{-g} be used, and that assembly listings (@samp{-al}) be requested
 also.
+
+Use the @samp{-ag} option to print a first section with general assembly
+information, like @value{AS} version, switches passed, or time stamp.
 
 Use the @samp{-ac} option to omit false conditionals from a listing.  Any lines
 which are not assembled because of a false @code{.if} (or @code{.ifdef}, or any
@@ -3776,7 +3798,7 @@ Some machine configurations provide additional directives.
 @menu
 * Abort::                       @code{.abort}
 @ifset COFF
-* ABORT (COFF)::                       @code{.ABORT}
+* ABORT (COFF)::                @code{.ABORT}
 @end ifset
 
 * Align::                       @code{.align @var{abs-expr} , @var{abs-expr}}
@@ -3828,6 +3850,7 @@ Some machine configurations provide additional directives.
 * Func::                        @code{.func}  
 * Global::                      @code{.global @var{symbol}}, @code{.globl @var{symbol}}
 @ifset ELF
+* Gnu_attribute::               @code{.gnu_attribute @var{tag},@var{value}}
 * Hidden::                      @code{.hidden @var{names}}
 @end ifset
 
@@ -3891,7 +3914,7 @@ Some machine configurations provide additional directives.
 * Scl::                         @code{.scl @var{class}}
 @end ifset
 @ifset COFF-ELF
-* Section::                     @code{.section @var{name}}
+* Section::                     @code{.section @var{name}[, @var{flags}]}
 @end ifset
 
 * Set::                         @code{.set @var{symbol}, @var{expression}}
@@ -3908,7 +3931,7 @@ Some machine configurations provide additional directives.
 * Stab::                        @code{.stabd, .stabn, .stabs}
 @end ifset
 
-* String::                      @code{.string "@var{str}"}
+* String::                      @code{.string "@var{str}"}, @code{.string8 "@var{str}"}, @code{.string16 "@var{str}"}, @code{.string32 "@var{str}"}, @code{.string64 "@var{str}"}
 * Struct::			@code{.struct @var{expression}}
 @ifset ELF
 * SubSection::                  @code{.subsection}
@@ -3999,7 +4022,7 @@ the location counter until it is a multiple of 8.  If the location counter
 is already a multiple of 8, no change is needed.  For the tic54x, the
 first expression is the alignment request in words.
 
-For other systems, including the i386 using a.out format, and the arm and
+For other systems, including ppc, i386 using a.out format, arm and
 strongarm, it is the
 number of low-order zero bits the location counter must have after
 advancement.  For example @samp{.align 3} advances the location
@@ -4207,6 +4230,17 @@ Allows the user to add arbitrary bytes to the unwind info.  One
 might use this to add OS-specific CFI opcodes, or generic CFI
 opcodes that GAS does not yet support.
 
+@section @code{.cfi_val_encoded_addr @var{register}, @var{encoding}, @var{label}}
+The current value of @var{register} is @var{label}.  The value of @var{label}
+will be encoded in the output file according to @var{encoding}; see the
+description of @code{.cfi_personality} for details on this encoding.
+
+The usefulness of equating a register to a fixed label is probably
+limited to the return address register.  Here, it can be useful to
+mark a code segment that has only one return address which is reached
+by a direct branch and no copy of the return address exists in memory
+or another register.
+
 @node LNS directives
 @section @code{.file @var{fileno} @var{filename}}
 @cindex @code{file} directive
@@ -4254,9 +4288,9 @@ state machine to @var{value}, which must be an unsigned integer.
 
 @end table
 
-@section @code{.loc_mark_blocks @var{enable}}
-@cindex @code{loc_mark_blocks} directive
-The @code{.loc_mark_blocks} directive makes the assembler emit an entry
+@section @code{.loc_mark_labels @var{enable}}
+@cindex @code{loc_mark_labels} directive
+The @code{.loc_mark_labels} directive makes the assembler emit an entry
 to the @code{.debug_line} line number matrix with the @code{basic_block}
 register in the state machine set whenever a code label is seen.
 The @var{enable} argument should be either 1 or 0, to enable or disable
@@ -4582,6 +4616,10 @@ partial programs.  You may need the HPPA-only @code{.EXPORT} directive as well.
 @end ifset
 
 @ifset ELF
+@node Gnu_attribute
+@section @code{.gnu_attribute @var{tag},@var{value}}
+Record a @sc{gnu} object attribute for this file.  @xref{Object Attributes}.
+
 @node Hidden
 @section @code{.hidden @var{names}}
 
@@ -5346,9 +5384,42 @@ This is one of the ELF section stack manipulation directives.  The others are
 (@pxref{PopSection}).
 
 This directive swaps the current section (and subsection) with most recently
-referenced section (and subsection) prior to this one.  Multiple
+referenced section/subsection pair prior to this one.  Multiple
 @code{.previous} directives in a row will flip between two sections (and their
-subsections).
+subsections).  For example:
+
+@smallexample
+.section A
+ .subsection 1
+  .word 0x1234
+ .subsection 2
+  .word 0x5678
+.previous
+ .word 0x9abc
+@end smallexample
+
+Will place 0x1234 and 0x9abc into subsection 1 and 0x5678 into subsection 2 of
+section A.  Whilst:
+
+@smallexample
+.section A
+.subsection 1
+  # Now in section A subsection 1
+  .word 0x1234
+.section B
+.subsection 0
+  # Now in section B subsection 0
+  .word 0x5678
+.subsection 1
+  # Now in section B subsection 1
+  .word 0x9abc
+.previous
+  # Now in section B subsection 0
+  .word 0xdef0
+@end smallexample
+
+Will place 0x1234 into section A, 0x5678 and 0xdef0 into subsection 0 of
+section B and 0x9abc into subsection 1 of section B.
 
 In terms of the section stack, this directive swaps the current section with
 the top section on the section stack.
@@ -5423,7 +5494,7 @@ expanded.  @xref{Macro}.
 
 @ifset ELF
 @node PushSection
-@section @code{.pushsection @var{name} , @var{subsection}}
+@section @code{.pushsection @var{name} [, @var{subsection}] [, "@var{flags}"[, @@@var{type}[,@var{arguments}]]]}
 
 @cindex @code{pushsection} directive
 @cindex Section Stack
@@ -5434,7 +5505,9 @@ This is one of the ELF section stack manipulation directives.  The others are
 
 This directive pushes the current section (and subsection) onto the
 top of the section stack, and then replaces the current section and
-subsection with @code{name} and @code{subsection}.
+subsection with @code{name} and @code{subsection}. The optional
+@code{flags}, @code{type} and @code{arguments} are treated the same
+as in the @code{.section} (@pxref{Section}) directive.
 @end ifset
 
 @node Quad
@@ -5551,7 +5624,7 @@ ways:
 
 @smallexample
 .section @var{name}[, "@var{flags}"]
-.section @var{name}[, @var{subsegment}]
+.section @var{name}[, @var{subsection}]
 @end smallexample
 
 If the optional argument is quoted, it is taken as flags to use for the
@@ -5582,7 +5655,7 @@ from the section, rather than adding them, so if they are used on their own it
 will be as if no flags had been specified at all.
 
 If the optional argument to the @code{.section} directive is not quoted, it is
-taken as a subsegment number (@pxref{Sub-Sections}).
+taken as a subsection number (@pxref{Sub-Sections}).
 @end ifset
 
 @ifset ELF
@@ -5932,15 +6005,38 @@ All five fields are specified.
 @c end     have-stabs
 
 @node String
-@section @code{.string} "@var{str}"
+@section @code{.string} "@var{str}", @code{.string8} "@var{str}", @code{.string16}
+"@var{str}", @code{.string32} "@var{str}", @code{.string64} "@var{str}" 
 
 @cindex string, copying to object file
+@cindex string8, copying to object file
+@cindex string16, copying to object file
+@cindex string32, copying to object file
+@cindex string64, copying to object file
 @cindex @code{string} directive
+@cindex @code{string8} directive
+@cindex @code{string16} directive
+@cindex @code{string32} directive
+@cindex @code{string64} directive
 
 Copy the characters in @var{str} to the object file.  You may specify more than
 one string to copy, separated by commas.  Unless otherwise specified for a
 particular machine, the assembler marks the end of each string with a 0 byte.
 You can use any of the escape sequences described in @ref{Strings,,Strings}.
+
+The variants @code{string16}, @code{string32} and @code{string64} differ from 
+the @code{string} pseudo opcode in that each 8-bit character from @var{str} is
+copied and expanded to 16, 32 or 64 bits respectively.  The expanded characters
+are stored in target endianness byte order.
+
+Example:
+@smallexample
+	.string32 "BYE"
+expands to:
+	.string   "B\0\0\0Y\0\0\0E\0\0\0"  /* On little endian targets.  */
+	.string   "\0\0\0B\0\0\0Y\0\0\0E"  /* On big endian targets.  */
+@end smallexample
+
 
 @node Struct
 @section @code{.struct @var{expression}}
@@ -6135,21 +6231,35 @@ assemblers.
 The syntaxes supported are:
 
 @smallexample
-  .type <name> STT_FUNCTION
-  .type <name> STT_OBJECT
-
-  .type <name>,#function
-  .type <name>,#object
-
-  .type <name>,@@function
-  .type <name>,@@object
-
-  .type <name>,%function
-  .type <name>,%object
-  
-  .type <name>,"function"
-  .type <name>,"object"
+  .type <name> STT_<TYPE_IN_UPPER_CASE>
+  .type <name>,#<type>
+  .type <name>,@@<type>
+  .type <name>,%>type>
+  .type <name>,"<type>"
 @end smallexample
+
+The types supported are:
+
+@table @gcctabopt
+@item STT_FUNC
+@itemx function
+Mark the symbol as being a function name.
+
+@item STT_OBJECT
+@itemx object
+Mark the symbol as being a data object.
+
+@item STT_TLS
+@itemx tls_object
+Mark the symbol as being a thead-local data object.
+
+@item STT_COMMON
+@itemx common
+Mark the symbol as being a common data object.
+@end table
+
+Note: Some targets support extra types in addition to those listed above.
+
 @end ifset
 @end ifset
 
@@ -6322,6 +6432,146 @@ They are included for compatibility with older assemblers.
 @item .abort
 @item .line
 @end table
+
+@ifset ELF
+@node Object Attributes
+@chapter Object Attributes
+@cindex object attributes
+
+@command{@value{AS}} assembles source files written for a specific architecture
+into object files for that architecture.  But not all object files are alike.
+Many architectures support incompatible variations.  For instance, floating
+point arguments might be passed in floating point registers if the object file
+requires hardware floating point support---or floating point arguments might be
+passed in integer registers if the object file supports processors with no
+hardware floating point unit.  Or, if two objects are built for different
+generations of the same architecture, the combination may require the
+newer generation at run-time.
+
+This information is useful during and after linking.  At link time,
+@command{@value{LD}} can warn about incompatible object files.  After link
+time, tools like @command{gdb} can use it to process the linked file
+correctly.
+
+Compatibility information is recorded as a series of object attributes.  Each
+attribute has a @dfn{vendor}, @dfn{tag}, and @dfn{value}.  The vendor is a
+string, and indicates who sets the meaning of the tag.  The tag is an integer,
+and indicates what property the attribute describes.  The value may be a string
+or an integer, and indicates how the property affects this object.  Missing
+attributes are the same as attributes with a zero value or empty string value.
+
+Object attributes were developed as part of the ABI for the ARM Architecture.
+The file format is documented in @cite{ELF for the ARM Architecture}.
+
+@menu
+* GNU Object Attributes::               @sc{gnu} Object Attributes
+* Defining New Object Attributes::      Defining New Object Attributes
+@end menu
+
+@node GNU Object Attributes
+@section @sc{gnu} Object Attributes
+
+The @code{.gnu_attribute} directive records an object attribute
+with vendor @samp{gnu}.
+
+Except for @samp{Tag_compatibility}, which has both an integer and a string for
+its value, @sc{gnu} attributes have a string value if the tag number is odd and
+an integer value if the tag number is even.  The second bit (@code{@var{tag} &
+2} is set for architecture-independent attributes and clear for
+architecture-dependent ones.
+
+@subsection Common @sc{gnu} attributes
+
+These attributes are valid on all architectures.
+
+@table @r
+@item Tag_compatibility (32)
+The compatibility attribute takes an integer flag value and a vendor name.  If
+the flag value is 0, the file is compatible with other toolchains.  If it is 1,
+then the file is only compatible with the named toolchain.  If it is greater
+than 1, the file can only be processed by other toolchains under some private
+arrangement indicated by the flag value and the vendor name.
+@end table
+
+@subsection MIPS Attributes
+
+@table @r
+@item Tag_GNU_MIPS_ABI_FP (4)
+The floating-point ABI used by this object file.  The value will be:
+
+@itemize @bullet
+@item
+0 for files not affected by the floating-point ABI.
+@item
+1 for files using the hardware floating-point with a standard double-precision
+FPU.
+@item
+2 for files using the hardware floating-point ABI with a single-precision FPU.
+@item
+3 for files using the software floating-point ABI.
+@item
+4 for files using the hardware floating-point ABI with 64-bit wide
+double-precision floating-point registers and 32-bit wide general
+purpose registers.
+@end itemize
+@end table
+
+@subsection PowerPC Attributes
+
+@table @r
+@item Tag_GNU_Power_ABI_FP (4)
+The floating-point ABI used by this object file.  The value will be:
+
+@itemize @bullet
+@item
+0 for files not affected by the floating-point ABI.
+@item
+1 for files using double-precision hardware floating-point ABI.
+@item
+2 for files using the software floating-point ABI.
+@item
+3 for files using single-precision hardware floating-point ABI.
+@end itemize
+
+@item Tag_GNU_Power_ABI_Vector (8)
+The vector ABI used by this object file.  The value will be:
+
+@itemize @bullet
+@item
+0 for files not affected by the vector ABI.
+@item
+1 for files using general purpose registers to pass vectors.
+@item
+2 for files using AltiVec registers to pass vectors.
+@item
+3 for files using SPE registers to pass vectors.
+@end itemize
+@end table
+
+@node Defining New Object Attributes
+@section Defining New Object Attributes
+
+If you want to define a new @sc{gnu} object attribute, here are the places you
+will need to modify.  New attributes should be discussed on the @samp{binutils}
+mailing list.
+
+@itemize @bullet
+@item
+This manual, which is the official register of attributes.
+@item
+The header for your architecture @file{include/elf}, to define the tag.
+@item
+The @file{bfd} support file for your architecture, to merge the attribute
+and issue any appropriate link warnings.
+@item
+Test cases in @file{ld/testsuite} for merging and link warnings.
+@item
+@file{binutils/readelf.c} to display your attribute.
+@item
+GCC, if you want the compiler to mark the attribute automatically.
+@end itemize
+
+@end ifset
 
 @ifset GENERIC
 @node Machine Dependencies

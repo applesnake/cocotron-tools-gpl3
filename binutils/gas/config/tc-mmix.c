@@ -1365,6 +1365,9 @@ md_assemble (char *str)
 	     pass expressions as symbols and use fix_new, not fix_new_exp.  */
 	  sym = make_expr_symbol (exp + 1);
 
+	  /* Mark the symbol as being OK for a reloc.  */
+	  symbol_get_bfdsym (sym)->flags |= BSF_KEEP;
+
 	  /* Now we know it can be a "base address plus offset".  Add
 	     proper fixup types so we can handle this later, when we've
 	     parsed everything.  */
@@ -2239,42 +2242,14 @@ md_estimate_size_before_relax (fragS *fragP, segT segment)
 char *
 md_atof (int type, char *litP, int *sizeP)
 {
-  int prec;
-  LITTLENUM_TYPE words[4];
-  char *t;
-  int i;
-
-  switch (type)
-    {
-      /* FIXME: Having 'f' in mmix_flt_chars (and here) makes it
-	 problematic to also have a forward reference in an expression.
-	 The testsuite wants it, and it's customary.
-	 We'll deal with the real problems when they come; we share the
-	 problem with most other ports.  */
-    case 'f':
-    case 'r':
-      prec = 2;
-      break;
-    case 'd':
-      prec = 4;
-      break;
-    default:
-      *sizeP = 0;
-      return _("bad call to md_atof");
-    }
-
-  t = atof_ieee (input_line_pointer, type, words);
-  if (t)
-    input_line_pointer = t;
-
-  *sizeP = prec * 2;
-
-  for (i = 0; i < prec; i++)
-    {
-      md_number_to_chars (litP, (valueT) words[i], 2);
-      litP += 2;
-    }
-  return NULL;
+  if (type == 'r')
+    type = 'f';
+  /* FIXME: Having 'f' in mmix_flt_chars (and here) makes it
+     problematic to also have a forward reference in an expression.
+     The testsuite wants it, and it's customary.
+     We'll deal with the real problems when they come; we share the
+     problem with most other ports.  */
+  return ieee_md_atof (type, litP, sizeP, TRUE);
 }
 
 /* Convert variable-sized frags into one or more fixups.  */
@@ -3476,6 +3451,7 @@ mmix_md_end (void)
 {
   fragS *fragP;
   symbolS *mainsym;
+  asection *regsec;
   int i;
 
   /* The first frag of GREG:s going into the register contents section.  */
@@ -3540,9 +3516,9 @@ mmix_md_end (void)
 	 and the same allocation order (within a file) as mmixal.  */
       segT this_segment = now_seg;
       subsegT this_subsegment = now_subseg;
-      asection *regsec
-	= bfd_make_section_old_way (stdoutput,
-				    MMIX_REG_CONTENTS_SECTION_NAME);
+
+      regsec = bfd_make_section_old_way (stdoutput,
+					 MMIX_REG_CONTENTS_SECTION_NAME);
       subseg_set (regsec, 0);
 
       /* Finally emit the initialization-value.  Emit a variable frag, which
@@ -3568,6 +3544,11 @@ mmix_md_end (void)
 
       subseg_set (this_segment, this_subsegment);
     }
+
+  regsec = bfd_get_section_by_name (stdoutput, MMIX_REG_CONTENTS_SECTION_NAME);
+  /* Mark the section symbol as being OK for a reloc.  */
+  if (regsec != NULL)
+    regsec->symbol->flags |= BSF_KEEP;
 
   /* Iterate over frags resulting from GREGs and move those that evidently
      have the same value together and point one to another.
@@ -3919,7 +3900,9 @@ s_loc (int ignore ATTRIBUTE_UNUSED)
 
       if (exp.X_add_number < ((offsetT) 0x20 << 56))
 	{
-	  /* Lower than Data_Segment - assume it's .text.  */
+	  /* Lower than Data_Segment or in the reserved area (the
+	     segment number is >= 0x80, appearing negative) - assume
+	     it's .text.  */
 	  section = text_section;
 
 	  /* Save the lowest seen location, so we can pass on this
@@ -3931,8 +3914,8 @@ s_loc (int ignore ATTRIBUTE_UNUSED)
 	     this one), we org at (this - lower).  There's an implicit
 	     "LOC 0" before any entered code.  FIXME: handled by spurious
 	     settings of text_has_contents.  */
-	  if (exp.X_add_number < 0
-	      || exp.X_add_number < (offsetT) lowest_text_loc)
+	  if (lowest_text_loc != (bfd_vma) -1
+	      && (bfd_vma) exp.X_add_number < lowest_text_loc)
 	    {
 	      as_bad (_("LOC expression stepping backwards is not supported"));
 	      exp.X_op = O_absent;
@@ -3955,7 +3938,8 @@ s_loc (int ignore ATTRIBUTE_UNUSED)
 	}
       else
 	{
-	  /* Do the same for the .data section.  */
+	  /* Do the same for the .data section, except we don't have
+	     to worry about exp.X_add_number carrying a sign.  */
 	  section = data_section;
 
 	  if (exp.X_add_number < (offsetT) lowest_data_loc)

@@ -1,5 +1,5 @@
 /* tc-d30v.c -- Assembler code for the Mitsubishi D30V
-   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007
+   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -285,44 +285,10 @@ md_undefined_symbol (char *name ATTRIBUTE_UNUSED)
   return 0;
 }
 
-/* Turn a string in input_line_pointer into a floating point constant
-   of type TYPE, and store the appropriate bytes in *LITP.  The number
-   of LITTLENUMS emitted is stored in *SIZEP.  An error message is
-   returned, or NULL on OK.  */
-
 char *
 md_atof (int type, char *litP, int *sizeP)
 {
-  int prec;
-  LITTLENUM_TYPE words[4];
-  char *t;
-  int i;
-
-  switch (type)
-    {
-    case 'f':
-      prec = 2;
-      break;
-    case 'd':
-      prec = 4;
-      break;
-    default:
-      *sizeP = 0;
-      return _("bad call to md_atof");
-    }
-
-  t = atof_ieee (input_line_pointer, type, words);
-  if (t)
-    input_line_pointer = t;
-
-  *sizeP = prec * 2;
-
-  for (i = 0; i < prec; i++)
-    {
-      md_number_to_chars (litP, (valueT) words[i], 2);
-      litP += 2;
-    }
-  return NULL;
+  return ieee_md_atof (type, litP, sizeP, TRUE);
 }
 
 void
@@ -386,7 +352,7 @@ postfix (char *p)
 }
 
 static bfd_reloc_code_real_type
-get_reloc (struct d30v_operand *op, int rel_flag)
+get_reloc (const struct d30v_operand *op, int rel_flag)
 {
   switch (op->bits)
     {
@@ -572,7 +538,7 @@ build_insn (struct d30v_insn *opcode, expressionS *opers)
 	    as_fatal (_("too many fixups"));
 
 	  fixups->fix[fixups->fc].reloc =
-	    get_reloc ((struct d30v_operand *) &d30v_operand_table[form->operands[i]], op->reloc_flag);
+	    get_reloc (d30v_operand_table + form->operands[i], op->reloc_flag);
 	  fixups->fix[fixups->fc].size = 4;
 	  fixups->fix[fixups->fc].exp = opers[i];
 	  fixups->fix[fixups->fc].operand = form->operands[i];

@@ -497,7 +497,7 @@ obj_coff_ident (int ignore ATTRIBUTE_UNUSED)
   subseg_new (".comment", 0);
 #endif
 
-  stringer (1);
+  stringer (8 + 1);
   subseg_set (current_seg, current_subseg);
 }
 
@@ -777,7 +777,6 @@ obj_coff_endef (int ignore ATTRIBUTE_UNUSED)
 
   if (SF_GET_FUNCTION (def_symbol_in_progress))
     {
-      know (sizeof (def_symbol_in_progress) <= sizeof (long));
       set_function (def_symbol_in_progress);
       SF_SET_PROCESS (def_symbol_in_progress);
 

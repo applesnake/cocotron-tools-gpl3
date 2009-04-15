@@ -1,6 +1,6 @@
 /* symbols.c -symbol table-
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
+   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -204,7 +204,7 @@ local_symbol_make (const char *name, segT section, valueT value, fragS *frag)
   local_symbol_set_frag (ret, frag);
   ret->lsy_value = value;
 
-  hash_jam (local_hash, name_copy, (PTR) ret);
+  hash_jam (local_hash, name_copy, (void *) ret);
 
   return ret;
 }
@@ -489,14 +489,14 @@ symbol_table_insert (symbolS *symbolP)
   if (LOCAL_SYMBOL_CHECK (symbolP))
     {
       error_string = hash_jam (local_hash, S_GET_NAME (symbolP),
-			       (PTR) symbolP);
+			       (void *) symbolP);
       if (error_string != NULL)
 	as_fatal (_("inserting \"%s\" into symbol table failed: %s"),
 		  S_GET_NAME (symbolP), error_string);
       return;
     }
 
-  if ((error_string = hash_jam (sy_hash, S_GET_NAME (symbolP), (PTR) symbolP)))
+  if ((error_string = hash_jam (sy_hash, S_GET_NAME (symbolP), (void *) symbolP)))
     {
       as_fatal (_("inserting \"%s\" into symbol table failed: %s"),
 		S_GET_NAME (symbolP), error_string);
@@ -596,13 +596,20 @@ symbol_clone (symbolS *orgsymP, int replace)
 	symbol_lastP = newsymP;
       else if (orgsymP->sy_next)
 	orgsymP->sy_next->sy_previous = newsymP;
+
+      /* Symbols that won't be output can't be external.  */
+      S_CLEAR_EXTERNAL (orgsymP);
       orgsymP->sy_previous = orgsymP->sy_next = orgsymP;
       debug_verify_symchain (symbol_rootP, symbol_lastP);
 
       symbol_table_insert (newsymP);
     }
   else
-    newsymP->sy_previous = newsymP->sy_next = newsymP;
+    {
+      /* Symbols that won't be output can't be external.  */
+      S_CLEAR_EXTERNAL (newsymP);
+      newsymP->sy_previous = newsymP->sy_next = newsymP;
+    }
 
   return newsymP;
 }
@@ -1438,12 +1445,12 @@ exit_dont_set_value:
   return final_val;
 }
 
-static void resolve_local_symbol (const char *, PTR);
+static void resolve_local_symbol (const char *, void *);
 
 /* A static function passed to hash_traverse.  */
 
 static void
-resolve_local_symbol (const char *key ATTRIBUTE_UNUSED, PTR value)
+resolve_local_symbol (const char *key ATTRIBUTE_UNUSED, void *value)
 {
   if (value != NULL)
     resolve_symbol_value (value);
@@ -2184,6 +2191,12 @@ S_SET_EXTERNAL (symbolS *s)
 		     _("section symbols are already global"));
       return;
     }
+  if (S_GET_SEGMENT (s) == reg_section)
+    {
+      as_bad ("can't make register symbol `%s' global",
+	      S_GET_NAME (s));
+      return;
+    }
   s->bsym->flags |= BSF_GLOBAL;
   s->bsym->flags &= ~(BSF_LOCAL | BSF_WEAK);
 
@@ -2785,7 +2798,7 @@ print_symbol_value_1 (FILE *file, symbolS *sym)
 
       if (s != undefined_section
 	  && s != expr_section)
-	fprintf (file, " %lx", (long) S_GET_VALUE (sym));
+	fprintf (file, " %lx", (unsigned long) S_GET_VALUE (sym));
     }
   else if (indent_level < max_indent_level
 	   && S_GET_SEGMENT (sym) != undefined_section)
@@ -2794,7 +2807,7 @@ print_symbol_value_1 (FILE *file, symbolS *sym)
       fprintf (file, "\n%*s<", indent_level * 4, "");
       if (LOCAL_SYMBOL_CHECK (sym))
 	fprintf (file, "constant %lx",
-		 (long) ((struct local_symbol *) sym)->lsy_value);
+		 (unsigned long) ((struct local_symbol *) sym)->lsy_value);
       else
 	print_expr_1 (file, &sym->sy_value);
       fprintf (file, ">");
@@ -2838,7 +2851,7 @@ print_expr_1 (FILE *file, expressionS *exp)
       fprintf (file, "absent");
       break;
     case O_constant:
-      fprintf (file, "constant %lx", (long) exp->X_add_number);
+      fprintf (file, "constant %lx", (unsigned long) exp->X_add_number);
       break;
     case O_symbol:
       indent_level++;
@@ -2848,7 +2861,7 @@ print_expr_1 (FILE *file, expressionS *exp)
     maybe_print_addnum:
       if (exp->X_add_number)
 	fprintf (file, "\n%*s%lx", indent_level * 4, "",
-		 (long) exp->X_add_number);
+		 (unsigned long) exp->X_add_number);
       indent_level--;
       break;
     case O_register:

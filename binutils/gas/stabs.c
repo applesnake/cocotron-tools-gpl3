@@ -164,6 +164,8 @@ aout_process_stab (what, string, type, other, desc)
 
   symbol_append (symbol, symbol_lastP, &symbol_rootP, &symbol_lastP);
 
+  symbol_get_bfdsym (symbol)->flags |= BSF_DEBUGGING;
+
   S_SET_TYPE (symbol, type);
   S_SET_OTHER (symbol, other);
   S_SET_DESC (symbol, desc);
@@ -667,8 +669,9 @@ stabs_generate_asm_func (const char *funcname, const char *startlabname)
     }
 
   as_where (&file, &lineno);
-  asprintf (&buf, "\"%s:F1\",%d,0,%d,%s",
-	    funcname, N_FUN, lineno + 1, startlabname);
+  if (asprintf (&buf, "\"%s:F1\",%d,0,%d,%s",
+		funcname, N_FUN, lineno + 1, startlabname) == -1)
+    as_fatal ("%s", xstrerror (errno));
   input_line_pointer = buf;
   s_stab ('s');
   free (buf);
@@ -693,7 +696,8 @@ stabs_generate_asm_endfunc (const char *funcname ATTRIBUTE_UNUSED,
   ++label_count;
   colon (sym);
 
-  asprintf (&buf, "\"\",%d,0,0,%s-%s", N_FUN, sym, startlabname);
+  if (asprintf (&buf, "\"\",%d,0,0,%s-%s", N_FUN, sym, startlabname) == -1)
+    as_fatal ("%s", xstrerror (errno));
   input_line_pointer = buf;
   s_stab ('s');
   free (buf);

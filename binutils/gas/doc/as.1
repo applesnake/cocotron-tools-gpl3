@@ -25,11 +25,11 @@
 ..
 .\" Set up some character translations and predefined strings.  \*(-- will
 .\" give an unbreakable dash, \*(PI will give pi, \*(L" will give a left
-.\" double quote, and \*(R" will give a right double quote.  \*(C+ will
-.\" give a nicer C++.  Capital omega is used to do unbreakable dashes and
-.\" therefore won't be available.  \*(C` and \*(C' expand to `' in nroff,
-.\" nothing in troff, for use with C<>.
-.tr \(*W-
+.\" double quote, and \*(R" will give a right double quote.  | will give a
+.\" real vertical bar.  \*(C+ will give a nicer C++.  Capital omega is used to
+.\" do unbreakable dashes and therefore won't be available.  \*(C` and \*(C'
+.\" expand to `' in nroff, nothing in troff, for use with C<>.
+.tr \(*W-|\(bv\*(Tr
 .ds C+ C\v'-.1v'\h'-1p'\s-2+\h'-1p'+\s0\v'.1v'\h'-1p'
 .ie n \{\
 .    ds -- \(*W-
@@ -128,12 +128,12 @@
 .\" ========================================================================
 .\"
 .IX Title "AS 1"
-.TH AS 1 "2007-08-28" "binutils-2.18" "GNU Development Tools"
+.TH AS 1 "2008-10-02" "binutils-2.18.92" "GNU Development Tools"
 .SH "NAME"
 AS \- the portable GNU assembler.
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
-as [\fB\-a\fR[\fBcdhlns\fR][=\fIfile\fR]] [\fB\-\-alternate\fR] [\fB\-D\fR]
+as [\fB\-a\fR[\fBcdghlns\fR][=\fIfile\fR]] [\fB\-\-alternate\fR] [\fB\-D\fR]
  [\fB\-\-debug\-prefix\-map\fR \fIold\fR=\fInew\fR]
  [\fB\-\-defsym\fR \fIsym\fR=\fIval\fR] [\fB\-f\fR] [\fB\-g\fR] [\fB\-\-gstabs\fR]
  [\fB\-\-gstabs+\fR] [\fB\-\-gdwarf\-2\fR] [\fB\-\-help\fR] [\fB\-I\fR \fIdir\fR] [\fB\-J\fR]
@@ -180,9 +180,12 @@ as [\fB\-a\fR[\fBcdhlns\fR][=\fIfile\fR]] [\fB\-\-alternate\fR] [\fB\-D\fR]
 \&\fITarget D30V options:\fR
    [\fB\-O\fR|\fB\-n\fR|\fB\-N\fR]
 .PP
+\&\fITarget H8/300 options:\fR
+   [\-h\-tick\-hex]
+.PP
 \&\fITarget i386 options:\fR
    [\fB\-\-32\fR|\fB\-\-64\fR] [\fB\-n\fR]
-   [\fB\-march\fR=\fI\s-1CPU\s0\fR] [\fB\-mtune\fR=\fI\s-1CPU\s0\fR] 
+   [\fB\-march\fR=\fI\s-1CPU\s0\fR[+\fI\s-1EXTENSION\s0\fR...]] [\fB\-mtune\fR=\fI\s-1CPU\s0\fR] 
 .PP
 \&\fITarget i960 options:\fR
    [\fB\-ACA\fR|\fB\-ACA_A\fR|\fB\-ACB\fR|\fB\-ACC\fR|\fB\-AKA\fR|\fB\-AKB\fR|
@@ -202,7 +205,7 @@ as [\fB\-a\fR[\fBcdhlns\fR][=\fIfile\fR]] [\fB\-\-alternate\fR] [\fB\-D\fR]
    [\fB\-mip2022\fR|\fB\-mip2022ext\fR]
 .PP
 \&\fITarget M32C options:\fR
-   [\fB\-m32c\fR|\fB\-m16c\fR]
+   [\fB\-m32c\fR|\fB\-m16c\fR] [\-relax] [\-h\-tick\-hex]
 .PP
 \&\fITarget M32R options:\fR
    [\fB\-\-m32rx\fR|\fB\-\-[no\-]warn\-explicit\-parallel\-conflicts\fR|
@@ -262,7 +265,7 @@ as [\fB\-a\fR[\fBcdhlns\fR][=\fIfile\fR]] [\fB\-\-alternate\fR] [\fB\-D\fR]
    [\fB\-mpwrx\fR|\fB\-mpwr2\fR|\fB\-mpwr\fR|\fB\-m601\fR|\fB\-mppc\fR|\fB\-mppc32\fR|\fB\-m603\fR|\fB\-m604\fR|
     \fB\-m403\fR|\fB\-m405\fR|\fB\-mppc64\fR|\fB\-m620\fR|\fB\-mppc64bridge\fR|\fB\-mbooke\fR|
     \fB\-mbooke32\fR|\fB\-mbooke64\fR]
-   [\fB\-mcom\fR|\fB\-many\fR|\fB\-maltivec\fR] [\fB\-memb\fR]
+   [\fB\-mcom\fR|\fB\-many\fR|\fB\-maltivec\fR|\fB\-mvsx\fR] [\fB\-memb\fR]
    [\fB\-mregnames\fR|\fB\-mno\-regnames\fR]
    [\fB\-mrelocatable\fR|\fB\-mrelocatable\-lib\fR]
    [\fB\-mlittle\fR|\fB\-mlittle\-endian\fR|\fB\-mbig\fR|\fB\-mbig\-endian\fR]
@@ -343,7 +346,7 @@ The assembler arguments must be separated from each other (and the \fB\-Wa\fR)
 by commas.  For example:
 .PP
 .Vb 1
-\&        gcc \-c \-g \-O \-Wa,\-alh,\-L file.c
+\&        gcc -c -g -O -Wa,-alh,-L file.c
 .Ve
 .PP
 This passes two options to the assembler: \fB\-alh\fR (emit a listing to
@@ -370,8 +373,8 @@ option in either single or double quotes.  Any character (including a
 backslash) may be included by prefixing the character to be included
 with a backslash.  The \fIfile\fR may itself contain additional
 @\fIfile\fR options; any such options will be processed recursively.
-.IP "\fB\-a[cdhlmns]\fR" 4
-.IX Item "-a[cdhlmns]"
+.IP "\fB\-a[cdghlmns]\fR" 4
+.IX Item "-a[cdghlmns]"
 Turn on listings, in any of a variety of ways:
 .RS 4
 .IP "\fB\-ac\fR" 4
@@ -380,6 +383,9 @@ omit false conditionals
 .IP "\fB\-ad\fR" 4
 .IX Item "-ad"
 omit debugging directives
+.IP "\fB\-ag\fR" 4
+.IX Item "-ag"
+include general information, like as version and options passed
 .IP "\fB\-ah\fR" 4
 .IX Item "-ah"
 include high-level source
@@ -643,6 +649,12 @@ Assemble M32C instructions.
 .IP "\fB\-m16c\fR" 4
 .IX Item "-m16c"
 Assemble M16C instructions (the default).
+.IP "\fB\-relax\fR" 4
+.IX Item "-relax"
+Enable support for link-time relaxations.
+.IP "\fB\-h\-tick\-hex\fR" 4
+.IX Item "-h-tick-hex"
+Support H'00 style hex constants in addition to 0x00 style.
 .PP
 The following options are available when as is configured for the
 Renesas M32R (formerly Mitsubishi M32R) series.
@@ -1072,6 +1084,10 @@ Enable or disable all assembler transformations of Xtensa instructions.
 The default is \fB\-\-transform\fR;
 \&\fB\-\-no\-transform\fR should be used only in the rare cases when the
 instructions must be exactly as specified in the assembly source.
+.IP "\fB\-\-rename\-section\fR \fIoldname\fR\fB=\fR\fInewname\fR" 4
+.IX Item "--rename-section oldname=newname"
+When generating output sections, rename the \fIoldname\fR section to
+\&\fInewname\fR.
 .PP
 The following options are available when as is configured for
 a Z80 family processor.
