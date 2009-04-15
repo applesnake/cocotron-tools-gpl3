@@ -96,6 +96,7 @@ struct areltdata {
   char * arch_header;		/* it's actually a string */
   unsigned int parsed_size;	/* octets of filesize not including ar_hdr */
   char *filename;		/* null-terminated */
+  file_ptr origin;		/* for element of a thin archive */
 };
 
 #define arelt_size(bfd) (((struct areltdata *)((bfd)->arelt_data))->parsed_size)
@@ -103,6 +104,8 @@ struct areltdata {
 extern void *bfd_malloc
   (bfd_size_type);
 extern void *bfd_realloc
+  (void *, bfd_size_type);
+extern void *bfd_realloc_or_free
   (void *, bfd_size_type);
 extern void *bfd_zmalloc
   (bfd_size_type);
@@ -859,6 +862,11 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_SPARC_UA16",
   "BFD_RELOC_SPARC_UA32",
   "BFD_RELOC_SPARC_UA64",
+  "BFD_RELOC_SPARC_GOTDATA_HIX22",
+  "BFD_RELOC_SPARC_GOTDATA_LOX10",
+  "BFD_RELOC_SPARC_GOTDATA_OP_HIX22",
+  "BFD_RELOC_SPARC_GOTDATA_OP_LOX10",
+  "BFD_RELOC_SPARC_GOTDATA_OP",
   "BFD_RELOC_SPARC_BASE13",
   "BFD_RELOC_SPARC_BASE22",
   "BFD_RELOC_SPARC_10",
@@ -956,6 +964,8 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_HI16_PCREL",
   "BFD_RELOC_HI16_S_PCREL",
   "BFD_RELOC_LO16_PCREL",
+  "BFD_RELOC_MIPS16_GOT16",
+  "BFD_RELOC_MIPS16_CALL16",
   "BFD_RELOC_MIPS16_HI16",
   "BFD_RELOC_MIPS16_HI16_S",
   "BFD_RELOC_MIPS16_LO16",
@@ -1046,6 +1056,8 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_MN10300_GLOB_DAT",
   "BFD_RELOC_MN10300_JMP_SLOT",
   "BFD_RELOC_MN10300_RELATIVE",
+  "BFD_RELOC_MN10300_SYM_DIFF",
+  "BFD_RELOC_MN10300_ALIGN",
 
   "BFD_RELOC_386_GOT32",
   "BFD_RELOC_386_PLT32",
@@ -1280,6 +1292,7 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_ARM_LDC_SB_G0",
   "BFD_RELOC_ARM_LDC_SB_G1",
   "BFD_RELOC_ARM_LDC_SB_G2",
+  "BFD_RELOC_ARM_V4BX",
   "BFD_RELOC_ARM_IMMEDIATE",
   "BFD_RELOC_ARM_ADRL_IMMEDIATE",
   "BFD_RELOC_ARM_T32_IMMEDIATE",
@@ -1833,6 +1846,9 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_CR16_DISP20",
   "BFD_RELOC_CR16_DISP24",
   "BFD_RELOC_CR16_DISP24a",
+  "BFD_RELOC_CR16_SWITCH8",
+  "BFD_RELOC_CR16_SWITCH16",
+  "BFD_RELOC_CR16_SWITCH32",
   "BFD_RELOC_CRX_REL4",
   "BFD_RELOC_CRX_REL8",
   "BFD_RELOC_CRX_REL8_CMP",
@@ -1985,6 +2001,13 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_XTENSA_OP2",
   "BFD_RELOC_XTENSA_ASM_EXPAND",
   "BFD_RELOC_XTENSA_ASM_SIMPLIFY",
+  "BFD_RELOC_XTENSA_TLSDESC_FN",
+  "BFD_RELOC_XTENSA_TLSDESC_ARG",
+  "BFD_RELOC_XTENSA_TLS_DTPOFF",
+  "BFD_RELOC_XTENSA_TLS_TPOFF",
+  "BFD_RELOC_XTENSA_TLS_FUNC",
+  "BFD_RELOC_XTENSA_TLS_ARG",
+  "BFD_RELOC_XTENSA_TLS_CALL",
   "BFD_RELOC_Z80_DISP8",
   "BFD_RELOC_Z8K_DISP7",
   "BFD_RELOC_Z8K_CALLR",

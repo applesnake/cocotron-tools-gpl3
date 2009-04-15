@@ -297,6 +297,9 @@ CODE_FRAGMENT
 .     with the expression tree serialized in the symbol name.  *}
 .#define BSF_SRELC 0x100000
 .
+.  {* This symbol was created by bfd_get_synthetic_symtab.  *}
+.#define BSF_SYNTHETIC 0x200000
+.
 .  flagword flags;
 .
 .  {* A pointer to the section to which this symbol is
@@ -989,10 +992,17 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 
       if (info->stabsec == NULL || info->strsec == NULL)
 	{
-	  /* No stabs debugging information.  Set *pinfo so that we
-             can return quickly in the info != NULL case above.  */
-	  *pinfo = info;
-	  return TRUE;
+	  /* Try SOM section names.  */
+	  info->stabsec = bfd_get_section_by_name (abfd, "$GDB_SYMBOLS$");
+	  info->strsec  = bfd_get_section_by_name (abfd, "$GDB_STRINGS$");
+  
+	  if (info->stabsec == NULL || info->strsec == NULL)
+	    {
+	      /* No stabs debugging information.  Set *pinfo so that we
+		 can return quickly in the info != NULL case above.  */
+	      *pinfo = info;
+	      return TRUE;
+	    }
 	}
 
       stabsize = (info->stabsec->rawsize
