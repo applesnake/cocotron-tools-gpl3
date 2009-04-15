@@ -1,5 +1,5 @@
 /* SuperH SH64-specific support for 64-bit ELF
-   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
+   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -2195,17 +2195,12 @@ sh_elf64_get_relocated_section_contents (bfd *output_bfd,
 
 	  if (isymp->st_shndx == SHN_UNDEF)
 	    isec = bfd_und_section_ptr;
-	  else if (isymp->st_shndx > 0 && isymp->st_shndx < SHN_LORESERVE)
-	    isec = bfd_section_from_elf_index (input_bfd, isymp->st_shndx);
 	  else if (isymp->st_shndx == SHN_ABS)
 	    isec = bfd_abs_section_ptr;
 	  else if (isymp->st_shndx == SHN_COMMON)
 	    isec = bfd_com_section_ptr;
 	  else
-	    {
-	      /* Who knows?  */
-	      isec = NULL;
-	    }
+	    isec = bfd_section_from_elf_index (input_bfd, isymp->st_shndx);
 
 	  *secpp = isec;
 	}
@@ -2419,7 +2414,7 @@ sh_elf64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 		       asection *sec, const Elf_Internal_Rela *relocs)
 {
   Elf_Internal_Shdr *symtab_hdr;
-  struct elf_link_hash_entry **sym_hashes, **sym_hashes_end;
+  struct elf_link_hash_entry **sym_hashes;
   const Elf_Internal_Rela *rel;
   const Elf_Internal_Rela *rel_end;
   bfd *dynobj;
@@ -2437,9 +2432,6 @@ sh_elf64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
   symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (abfd);
-  sym_hashes_end = sym_hashes + symtab_hdr->sh_size/sizeof(Elf64_External_Sym);
-  if (!elf_bad_symtab (abfd))
-    sym_hashes_end -= symtab_hdr->sh_info;
 
   dynobj = elf_hash_table (info)->dynobj;
   local_got_offsets = elf_local_got_offsets (abfd);
@@ -2508,7 +2500,9 @@ sh_elf64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  /* This relocation describes which C++ vtable entries are actually
 	     used.  Record for later use during GC.  */
         case R_SH_GNU_VTENTRY:
-          if (!bfd_elf_gc_record_vtentry (abfd, sec, h, rel->r_addend))
+          BFD_ASSERT (h != NULL);
+          if (h != NULL
+              && !bfd_elf_gc_record_vtentry (abfd, sec, h, rel->r_addend))
             return FALSE;
           break;
 

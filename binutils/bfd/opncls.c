@@ -1,6 +1,6 @@
 /* opncls.c -- open and close a BFD.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007
+   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
 
    Written by Cygnus Support.
@@ -545,7 +545,8 @@ bfd_openr_iovec (const char *filename, const char *target,
   nbfd->filename = filename;
   nbfd->direction = read_direction;
 
-  stream = open (nbfd, open_closure);
+  /* `open (...)' would get expanded by an the open(2) syscall macro.  */
+  stream = (*open) (nbfd, open_closure);
   if (stream == NULL)
     {
       _bfd_delete_bfd (nbfd);
@@ -646,11 +647,20 @@ bfd_boolean
 bfd_close (bfd *abfd)
 {
   bfd_boolean ret;
+  bfd *nbfd;
+  bfd *next;
 
   if (bfd_write_p (abfd))
     {
       if (! BFD_SEND_FMT (abfd, _bfd_write_contents, (abfd)))
 	return FALSE;
+    }
+
+  /* Close nested archives (if this bfd is a thin archive).  */
+  for (nbfd = abfd->nested_archives; nbfd; nbfd = next)
+    {
+      next = nbfd->archive_next;
+      bfd_close (nbfd);
     }
 
   if (! BFD_SEND (abfd, _close_and_cleanup, (abfd)))
@@ -1174,19 +1184,19 @@ separate_debug_file_exists (const char *name, const unsigned long crc)
 {
   static unsigned char buffer [8 * 1024];
   unsigned long file_crc = 0;
-  int fd;
+  FILE *f;
   bfd_size_type count;
 
   BFD_ASSERT (name);
 
-  fd = open (name, O_RDONLY);
-  if (fd < 0)
+  f = real_fopen (name, FOPEN_RB);
+  if (f == NULL)
     return FALSE;
 
-  while ((count = read (fd, buffer, sizeof (buffer))) > 0)
+  while ((count = fread (buffer, 1, sizeof (buffer), f)) > 0)
     file_crc = bfd_calc_gnu_debuglink_crc32 (file_crc, buffer, count);
 
-  close (fd);
+  fclose (f);
 
   return crc == file_crc;
 }
@@ -1214,52 +1224,64 @@ find_separate_debug_file (bfd *abfd, const char *debug_file_directory)
   char *basename;
   char *dir;
   char *debugfile;
+  char *canon_dir;
   unsigned long crc32;
-  int i;
+  size_t dirlen;
+  size_t canon_dirlen;
 
   BFD_ASSERT (abfd);
   if (debug_file_directory == NULL)
     debug_file_directory = ".";
 
   /* BFD may have been opened from a stream.  */
-  if (! abfd->filename)
-    return NULL;
+  if (abfd->filename == NULL)
+    {
+      bfd_set_error (bfd_error_invalid_operation);
+      return NULL;
+    }
 
   basename = get_debug_link_info (abfd, & crc32);
   if (basename == NULL)
     return NULL;
 
-  if (strlen (basename) < 1)
+  if (basename[0] == '\0')
     {
       free (basename);
+      bfd_set_error (bfd_error_no_debug_section);
       return NULL;
     }
 
-  dir = strdup (abfd->filename);
+  for (dirlen = strlen (abfd->filename); dirlen > 0; dirlen--)
+    if (IS_DIR_SEPARATOR (abfd->filename[dirlen - 1]))
+      break;
+
+  dir = bfd_malloc (dirlen + 1);
   if (dir == NULL)
     {
       free (basename);
       return NULL;
     }
-  BFD_ASSERT (strlen (dir) != 0);
+  memcpy (dir, abfd->filename, dirlen);
+  dir[dirlen] = '\0';
 
-  /* Strip off filename part.  */
-  for (i = strlen (dir) - 1; i >= 0; i--)
-    if (IS_DIR_SEPARATOR (dir[i]))
+  /* Compute the canonical name of the bfd object with all symbolic links
+     resolved, for use in the global debugfile directory.  */
+  canon_dir = lrealpath (abfd->filename);
+  for (canon_dirlen = strlen (canon_dir); canon_dirlen > 0; canon_dirlen--)
+    if (IS_DIR_SEPARATOR (canon_dir[canon_dirlen - 1]))
       break;
+  canon_dir[canon_dirlen] = '\0';
 
-  dir[i + 1] = '\0';
-  BFD_ASSERT (dir[i] == '/' || dir[0] == '\0');
-
-  debugfile = malloc (strlen (debug_file_directory) + 1
-		      + strlen (dir)
-		      + strlen (".debug/")
-		      + strlen (basename)
-		      + 1);
+  debugfile = bfd_malloc (strlen (debug_file_directory) + 1
+			  + (canon_dirlen > dirlen ? canon_dirlen : dirlen)
+			  + strlen (".debug/")
+			  + strlen (basename)
+			  + 1);
   if (debugfile == NULL)
     {
       free (basename);
       free (dir);
+      free (canon_dir);
       return NULL;
     }
 
@@ -1271,6 +1293,7 @@ find_separate_debug_file (bfd *abfd, const char *debug_file_directory)
     {
       free (basename);
       free (dir);
+      free (canon_dir);
       return debugfile;
     }
 
@@ -1283,29 +1306,32 @@ find_separate_debug_file (bfd *abfd, const char *debug_file_directory)
     {
       free (basename);
       free (dir);
+      free (canon_dir);
       return debugfile;
     }
 
   /* Then try in the global debugfile directory.  */
   strcpy (debugfile, debug_file_directory);
-  i = strlen (debug_file_directory) - 1;
-  if (i > 0
-      && debug_file_directory[i] != '/'
-      && dir[0] != '/')
+  dirlen = strlen (debug_file_directory) - 1;
+  if (dirlen > 0
+      && debug_file_directory[dirlen] != '/'
+      && canon_dir[0] != '/')
     strcat (debugfile, "/");
-  strcat (debugfile, dir);
+  strcat (debugfile, canon_dir);
   strcat (debugfile, basename);
 
   if (separate_debug_file_exists (debugfile, crc32))
     {
       free (basename);
       free (dir);
+      free (canon_dir);
       return debugfile;
     }
 
   free (debugfile);
   free (basename);
   free (dir);
+  free (canon_dir);
   return NULL;
 }
 
@@ -1434,6 +1460,7 @@ bfd_fill_in_gnu_debuglink_section (bfd *abfd,
   FILE * handle;
   static unsigned char buffer[8 * 1024];
   size_t count;
+  size_t filelen;
 
   if (abfd == NULL || sect == NULL || filename == NULL)
     {
@@ -1463,21 +1490,22 @@ bfd_fill_in_gnu_debuglink_section (bfd *abfd,
      now that we no longer need them.  */
   filename = lbasename (filename);
 
-  debuglink_size = strlen (filename) + 1;
+  filelen = strlen (filename);
+  debuglink_size = filelen + 1;
   debuglink_size += 3;
   debuglink_size &= ~3;
   debuglink_size += 4;
 
-  contents = malloc (debuglink_size);
+  contents = bfd_malloc (debuglink_size);
   if (contents == NULL)
     {
       /* XXX Should we delete the section from the bfd ?  */
-      bfd_set_error (bfd_error_no_memory);
       return FALSE;
     }
 
-  strcpy (contents, filename);
   crc_offset = debuglink_size - 4;
+  memcpy (contents, filename, filelen);
+  memset (contents + filelen, 0, crc_offset - filelen);
 
   bfd_put_32 (abfd, crc32, contents + crc_offset);
 

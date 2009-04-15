@@ -1,6 +1,6 @@
 /* BFD support for handling relocation entries.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -1830,6 +1830,16 @@ ENUMX
   BFD_RELOC_SPARC_UA32
 ENUMX
   BFD_RELOC_SPARC_UA64
+ENUMX
+  BFD_RELOC_SPARC_GOTDATA_HIX22
+ENUMX
+  BFD_RELOC_SPARC_GOTDATA_LOX10
+ENUMX
+  BFD_RELOC_SPARC_GOTDATA_OP_HIX22
+ENUMX
+  BFD_RELOC_SPARC_GOTDATA_OP_LOX10
+ENUMX
+  BFD_RELOC_SPARC_GOTDATA_OP
 ENUMDOC
   SPARC ELF relocations.  There is probably some overlap with other
   relocation types already defined.
@@ -2144,6 +2154,13 @@ ENUMDOC
   Low 16 bits of pc-relative value
 
 ENUM
+  BFD_RELOC_MIPS16_GOT16
+ENUMX
+  BFD_RELOC_MIPS16_CALL16
+ENUMDOC
+  Equivalent of BFD_RELOC_MIPS_*, but with the MIPS16 layout of
+     16-bit immediate fields
+ENUM
   BFD_RELOC_MIPS16_HI16
 ENUMDOC
   MIPS16 high 16 bits of 32-bit value.
@@ -2241,7 +2258,7 @@ ENUM
 ENUMX
   BFD_RELOC_MIPS_JUMP_SLOT
 ENUMDOC
-  MIPS ELF relocations (VxWorks extensions).
+  MIPS ELF relocations (VxWorks and PLT extensions).
 COMMENT
 
 ENUM
@@ -2361,6 +2378,18 @@ ENUM
   BFD_RELOC_MN10300_RELATIVE
 ENUMDOC
   Adjust by program base.
+ENUM
+  BFD_RELOC_MN10300_SYM_DIFF
+ENUMDOC
+  Together with another reloc targeted at the same location,
+  allows for a value that is the difference of two symbols
+  in the same section.
+ENUM
+  BFD_RELOC_MN10300_ALIGN
+ENUMDOC
+  The addend of this reloc is an alignment power that must
+  be honoured at the offset's location, regardless of linker
+  relaxation.
 COMMENT
 
 ENUM
@@ -2911,6 +2940,11 @@ ENUMX
   BFD_RELOC_ARM_LDC_SB_G2
 ENUMDOC
   ARM group relocations.
+
+ENUM
+  BFD_RELOC_ARM_V4BX
+ENUMDOC
+  Annotation of BX instructions.
 
 ENUM
   BFD_RELOC_ARM_IMMEDIATE
@@ -4570,6 +4604,12 @@ ENUMX
   BFD_RELOC_CR16_DISP24
 ENUMX
   BFD_RELOC_CR16_DISP24a
+ENUMX
+  BFD_RELOC_CR16_SWITCH8
+ENUMX
+  BFD_RELOC_CR16_SWITCH16
+ENUMX
+  BFD_RELOC_CR16_SWITCH32
 ENUMDOC
   NS CR16 Relocations.
 
@@ -4975,6 +5015,22 @@ ENUMDOC
   assembler-expanded instructions.  This is commonly used
   internally by the linker after analysis of a
   BFD_RELOC_XTENSA_ASM_EXPAND.
+ENUM
+  BFD_RELOC_XTENSA_TLSDESC_FN
+ENUMX
+  BFD_RELOC_XTENSA_TLSDESC_ARG
+ENUMX
+  BFD_RELOC_XTENSA_TLS_DTPOFF
+ENUMX
+  BFD_RELOC_XTENSA_TLS_TPOFF
+ENUMX
+  BFD_RELOC_XTENSA_TLS_FUNC
+ENUMX
+  BFD_RELOC_XTENSA_TLS_ARG
+ENUMX
+  BFD_RELOC_XTENSA_TLS_CALL
+ENUMDOC
+  Xtensa TLS relocations.
 
 ENUM
   BFD_RELOC_Z80_DISP8

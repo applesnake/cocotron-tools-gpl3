@@ -1,5 +1,5 @@
 /* Morpho Technologies MT specific support for 32-bit ELF
-   Copyright 2001, 2002, 2003, 2004, 2005, 2006, 2007
+   Copyright 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -436,7 +436,6 @@ mt_elf_check_relocs
 {
   Elf_Internal_Shdr *           symtab_hdr;
   struct elf_link_hash_entry ** sym_hashes;
-  struct elf_link_hash_entry ** sym_hashes_end;
   const Elf_Internal_Rela *     rel;
   const Elf_Internal_Rela *     rel_end;
   
@@ -445,9 +444,6 @@ mt_elf_check_relocs
   
   symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (abfd);
-  sym_hashes_end = sym_hashes + symtab_hdr->sh_size / sizeof (Elf32_External_Sym);
-  if (!elf_bad_symtab (abfd))
-    sym_hashes_end -= symtab_hdr->sh_info;
   
   rel_end = relocs + sec->reloc_count;
   for (rel = relocs; rel < rel_end; rel++)
@@ -584,7 +580,7 @@ mt_elf_print_private_bfd_data (bfd * abfd, void * ptr)
   _bfd_elf_print_private_bfd_data (abfd, ptr);
 
   flags = elf_elfheader (abfd)->e_flags;
-  fprintf (file, _("private flags = 0x%lx:"), (long)flags);
+  fprintf (file, _("private flags = 0x%lx:"), (unsigned long) flags);
 
   switch (flags & EF_MT_CPU_MASK)
     {

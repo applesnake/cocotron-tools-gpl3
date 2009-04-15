@@ -60,13 +60,9 @@ INCLUDES = -I.. -I$(srcdir)/.. -I$(srcdir)/../../include \
 	-I$(srcdir)/../../intl -I../../intl
 
 $(MKDOC): $(srcdir)/chew.c
-	$(CC_FOR_BUILD) -o chew.$$$$ $(srcdir)/chew.c \
-	  $(CFLAGS_FOR_BUILD) $(LDFLAGS_FOR_BUILD) $(H_CFLAGS) \
-	  $(INCLUDES); \
+	$(CC_FOR_BUILD) -o chew.$$$$ $(CFLAGS_FOR_BUILD) $(LDFLAGS_FOR_BUILD) \
+	  $(H_CFLAGS) $(INCLUDES) $(srcdir)/chew.c; \
 	$(SHELL) $(srcdir)/../../move-if-change chew.$$$$ $(MKDOC)
-
-chew.o: chew.c
-	$(CC_FOR_BUILD) -c $(INCLUDES) $(H_CFLAGS) $(CFLAGS_FOR_BUILD) $(srcdir)/chew.c
 
 protos: libbfd.h libcoff.h bfd.h
 
@@ -253,6 +249,7 @@ BFD_H_DEP = \
 	$(srcdir)/../format.c		\
 	$(srcdir)/../linker.c		\
 	$(srcdir)/../simple.c		\
+	$(srcdir)/../compress.c		\
 	$(srcdir)/header.sed		\
 	$(srcdir)/proto.str		\
 	$(srcdir)/../version.h		\
