@@ -1,6 +1,7 @@
 /* tc-m68k.c -- Assemble for the m68k family
    Copyright 1987, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -176,6 +177,10 @@ static const enum m68k_register mcf_ctrl[] = {
   RAMBAR0, RAMBAR1, RAMBAR, MBAR,
   0
 };
+static const enum m68k_register mcf51qe_ctrl[] = {
+  VBR,
+  0
+};
 static const enum m68k_register mcf5206_ctrl[] = {
   CACR, ACR0, ACR1,  VBR, RAMBAR0, RAMBAR_ALT, MBAR,
   0
@@ -201,7 +206,7 @@ static const enum m68k_register mcf52223_ctrl[] = {
   0
 };
 static const enum m68k_register mcf52235_ctrl[] = {
-  VBR, FLASHBAR, RAMBAR, RAMBAR1,
+  VBR, CACR, ACR0, ACR1, FLASHBAR, RAMBAR, RAMBAR1,
   0
 };
 static const enum m68k_register mcf5225_ctrl[] = {
@@ -221,7 +226,7 @@ static const enum m68k_register mcf5250_ctrl[] = {
   0
 };
 static const enum m68k_register mcf5253_ctrl[] = {
-  VBR, CACR, ACR0, ACR1, RAMBAR0, RAMBAR1, MBAR,
+  VBR, CACR, ACR0, ACR1, RAMBAR0, RAMBAR1, RAMBAR, MBAR, MBAR2,
   0
 };
 static const enum m68k_register mcf5271_ctrl[] = {
@@ -268,6 +273,15 @@ static const enum m68k_register mcfv4e_ctrl[] = {
   ROMBAR /* ROMBAR0 */, RAMBAR /* RAMBAR1 */,
   0
 };
+static const enum m68k_register mcf5407_ctrl[] = {
+  CACR, ASID, ACR0, ACR1, ACR2, ACR3,
+  VBR, PC, RAMBAR0, RAMBAR1, MBAR,
+  /* Legacy names */
+  TC /* ASID */,
+  ITT0 /* ACR0 */, ITT1 /* ACR1 */, DTT0 /* ACR2 */, DTT1 /* ACR3 */,
+  MBAR1 /* MBAR */, RAMBAR /* RAMBAR1 */,
+  0
+};
 static const enum m68k_register mcf54455_ctrl[] = {
   CACR, ASID, ACR0, ACR1, ACR2, ACR3, MMUBAR,
   VBR, PC, RAMBAR1, MBAR,
@@ -296,7 +310,7 @@ static const enum m68k_register mcf5485_ctrl[] = {
   0
 };
 static const enum m68k_register fido_ctrl[] = {
-  SFC, DFC, USP, VBR, CAC, MBB,
+  SFC, DFC, USP, VBR, CAC, MBO,
   0
 };
 #define cpu32_ctrl m68010_ctrl
@@ -367,6 +381,7 @@ struct m68k_it
 	((x) & (m68020|m68030|m68040|m68060|cpu32|fido_a|mcfisa_b|mcfisa_c))
 #define HAVE_LONG_BRANCH(x)	\
 	((x) & (m68020|m68030|m68040|m68060|cpu32|fido_a|mcfisa_b))
+#define LONG_BRANCH_VIA_COND(x) (HAVE_LONG_COND(x) && !HAVE_LONG_BRANCH(x))
 
 static struct m68k_it the_ins;	/* The instruction being assembled.  */
 
@@ -559,6 +574,8 @@ static const struct m68k_cpu m68k_cpus[] =
   {cpu32|m68881,				cpu32_ctrl, "68341", 1},
   {cpu32|m68881,				cpu32_ctrl, "68349", 1},
   {cpu32|m68881,				cpu32_ctrl, "68360", 1},
+
+  {mcfisa_a|mcfisa_c|mcfusp,                    mcf51qe_ctrl, "51qe", 0},
   
   {mcfisa_a,					mcf_ctrl, "5200", 0},
   {mcfisa_a,					mcf_ctrl, "5202", 1},
@@ -626,7 +643,7 @@ static const struct m68k_cpu m68k_cpus[] =
   {mcfisa_a|mcfisa_aa|mcfhwdiv|mcfemac|mcfusp,	mcf5373_ctrl, "5373", -1},
   {mcfisa_a|mcfisa_aa|mcfhwdiv|mcfemac|mcfusp,	mcf5373_ctrl, "537x", 0},
   
-  {mcfisa_a|mcfisa_b|mcfhwdiv|mcfmac,		mcf_ctrl, "5407",0},
+  {mcfisa_a|mcfisa_b|mcfhwdiv|mcfmac,		mcf5407_ctrl, "5407",0},
 
   {mcfisa_a|mcfisa_c|mcfhwdiv|mcfemac|mcfusp,   mcf54455_ctrl, "54450", -1},
   {mcfisa_a|mcfisa_c|mcfhwdiv|mcfemac|mcfusp,   mcf54455_ctrl, "54451", -1},
@@ -719,8 +736,14 @@ static void m68k_init_arch (void);
 #define PCINDEX		8	/* PC + displacement + index. */
 #define ABSTOPCREL	9	/* Absolute relax down to 16-bit PC-relative.  */
 
+/* This relaxation is required for branches where there is no long
+   branch and we are in pcrel mode.  We generate a bne/beq pair.  */
+#define BRANCHBWPL	10      /* Branch byte, word or pair of longs
+				   */
+
 /* Note that calls to frag_var need to specify the maximum expansion
-   needed; this is currently 10 bytes for DBCC.  */
+   needed; this is currently 12 bytes for bne/beq pair.  */
+#define FRAG_VAR_SIZE 12
 
 /* The fields are:
    How far Forward this mode will reach:
@@ -780,6 +803,11 @@ relax_typeS md_relax_table[] =
   { 32767, -32768,  2, TAB (ABSTOPCREL, LONG) },
   {	0,	0,  4, 0 },
   {	1,	1,  0, 0 },
+  
+  {   127,   -128,  0, TAB (BRANCHBWPL, SHORT) },
+  { 32767, -32768,  2, TAB (BRANCHBWPL, LONG) },
+  {     0,	0,  10, 0 },
+  {     1,	1,  0, 0 },
 };
 
 /* These are the machine dependent pseudo-ops.  These are included so
@@ -2151,7 +2179,7 @@ m68k_ip (char *instring)
 
 	      the_ins.error = buf;
 	      /* Make sure there's a NUL at the end of the buffer -- strncpy
-		 won't write one when it runs out of buffer */
+		 won't write one when it runs out of buffer.  */
 	      buf[space] = 0;
 #define APPEND(STRING) \
   (strncpy (buf, STRING, space), len = strlen (buf), buf += len, space -= len)
@@ -2160,34 +2188,41 @@ m68k_ip (char *instring)
 	      switch (ok_arch)
 		{
 		case mcfisa_a:
-		  APPEND (_("ColdFire ISA_A"));
+		  APPEND ("ColdFire ISA_A");
 		  break;
 		case mcfhwdiv:
-		  APPEND (_("ColdFire hardware divide"));
+		  APPEND ("ColdFire ");
+		  APPEND (_("hardware divide"));
 		  break;
 		case mcfisa_aa:
-		  APPEND (_("ColdFire ISA_A+"));
+		  APPEND ("ColdFire ISA_A+");
 		  break;
 		case mcfisa_b:
-		  APPEND (_("ColdFire ISA_B"));
+		  APPEND ("ColdFire ISA_B");
+		  break;
+		case mcfisa_c:
+		  APPEND ("ColdFire ISA_C");
 		  break;
 		case cfloat:
-		  APPEND (_("ColdFire fpu"));
+		  APPEND ("ColdFire fpu");
 		  break;
 		case mfloat:
-		  APPEND (_("M68K fpu"));
+		  APPEND ("M68K fpu");
 		  break;
 		case mmmu:
-		  APPEND (_("M68K mmu"));
+		  APPEND ("M68K mmu");
 		  break;
 		case m68020up:
-		  APPEND (_("68020 or higher"));
+		  APPEND ("68020 ");
+		  APPEND (_("or higher"));
 		  break;
 		case m68000up:
-		  APPEND (_("68000 or higher"));
+		  APPEND ("68000 ");
+		  APPEND (_("or higher"));
 		  break;
 		case m68010up:
-		  APPEND (_("68010 or higher"));
+		  APPEND ("68010 ");
+		  APPEND (_("or higher"));
 		  break;
 		default:
 		  paren = 0;
@@ -2231,7 +2266,7 @@ m68k_ip (char *instring)
 #undef APPEND
 	      if (!space)
 		{
-		  /* we ran out of space, so replace the end of the list
+		  /* We ran out of space, so replace the end of the list
 		     with ellipsis.  */
 		  buf -= 4;
 		  while (*buf != ' ')
@@ -2257,6 +2292,7 @@ m68k_ip (char *instring)
   for (s = the_ins.args, opP = &the_ins.operands[0]; *s; s += 2, opP++)
     {
       int have_disp = 0;
+      int use_pl = 0;
       
       /* This switch is a doozy.
 	 Watch the first step; its a big one! */
@@ -2940,6 +2976,7 @@ m68k_ip (char *instring)
 	      
 	    case 'b': /* Unconditional branch */
 	      have_disp = HAVE_LONG_BRANCH (current_architecture);
+	      use_pl = LONG_BRANCH_VIA_COND (current_architecture);
 	      goto var_branch;
 	      
 	    case 's': /* Unconditional subroutine */
@@ -3003,7 +3040,8 @@ m68k_ip (char *instring)
 	      else
 		add_frag (adds (&opP->disp),
 			  SEXT (offs (&opP->disp)),
-			  TAB (BRANCHBW, SZ_UNDEF));
+			  (use_pl ? TAB (BRANCHBWPL, SZ_UNDEF)
+			   : TAB (BRANCHBW, SZ_UNDEF)));
 	      break;
 	    case 'w':
 	      if (isvar (&opP->disp))
@@ -3232,7 +3270,7 @@ m68k_ip (char *instring)
             case CAC:
               tmpreg = 0xFFE;
               break;
-            case MBB:
+            case MBO:
               tmpreg = 0xFFF;
               break;
 	    default:
@@ -3553,10 +3591,9 @@ reverse_8_bits (int in)
   return out;
 }				/* reverse_8_bits() */
 
-/* Cause an extra frag to be generated here, inserting up to 10 bytes
-   (that value is chosen in the frag_var call in md_assemble).  TYPE
-   is the subtype of the frag to be generated; its primary type is
-   rs_machine_dependent.
+/* Cause an extra frag to be generated here, inserting up to
+   FRAG_VAR_SIZE bytes.  TYPE is the subtype of the frag to be
+   generated; its primary type is rs_machine_dependent.
 
    The TYPE parameter is also used by md_convert_frag_1 and
    md_estimate_size_before_relax.  The appropriate type of fixup will
@@ -3974,7 +4011,8 @@ static const struct init_entry init_table[] =
   { "mbar2",    MBAR2 },  	/* mcf5249 registers.  */
 
   { "cac",    CAC },  		/* fido registers.  */
-  { "mbb",    MBB },  		/* fido registers.  */
+  { "mbb",    MBO },  		/* fido registers (obsolete).  */
+  { "mbo",    MBO },  		/* fido registers.  */
   /* End of control registers.  */
 
   { "ac", AC },
@@ -4229,7 +4267,7 @@ md_assemble (char *str)
     for (n = 1; n < the_ins.nfrag; n++)
       wid += 2 * (the_ins.numo - the_ins.fragb[n - 1].fragoff);
     /* frag_var part.  */
-    wid += 10;
+    wid += FRAG_VAR_SIZE;
     /* Make sure the whole insn fits in one chunk, in particular that
        the var part is attached, as we access one byte before the
        variable frag for byte branches.  */
@@ -4277,7 +4315,7 @@ md_assemble (char *str)
 					      the_ins.reloc[m].pic_reloc));
 	  fixP->fx_pcrel_adjust = the_ins.reloc[m].pcrel_fix;
 	}
-      (void) frag_var (rs_machine_dependent, 10, 0,
+      (void) frag_var (rs_machine_dependent, FRAG_VAR_SIZE, 0,
 		       (relax_substateT) (the_ins.fragb[n].fragty),
 		       the_ins.fragb[n].fadd, the_ins.fragb[n].foff, to_beg_P);
     }
@@ -4432,7 +4470,7 @@ md_begin (void)
     {
       const char *name = m68k_opcode_aliases[i].primary;
       const char *alias = m68k_opcode_aliases[i].alias;
-      PTR val = hash_find (op_hash, name);
+      void *val = hash_find (op_hash, name);
 
       if (!val)
 	as_fatal (_("Internal Error: Can't find %s in hash table"), name);
@@ -4471,7 +4509,7 @@ md_begin (void)
 	{
 	  const char *name = mri_aliases[i].primary;
 	  const char *alias = mri_aliases[i].alias;
-	  PTR val = hash_find (op_hash, name);
+	  void *val = hash_find (op_hash, name);
 
 	  if (!val)
 	    as_fatal (_("Internal Error: Can't find %s in hash table"), name);
@@ -4648,63 +4686,10 @@ m68k_mri_mode_change (int on)
     }
 }
 
-/* Equal to MAX_PRECISION in atof-ieee.c.  */
-#define MAX_LITTLENUMS 6
-
-/* Turn a string in input_line_pointer into a floating point constant
-   of type TYPE, and store the appropriate bytes in *LITP.  The number
-   of LITTLENUMS emitted is stored in *SIZEP.  An error message is
-   returned, or NULL on OK.  */
-
 char *
 md_atof (int type, char *litP, int *sizeP)
 {
-  int prec;
-  LITTLENUM_TYPE words[MAX_LITTLENUMS];
-  LITTLENUM_TYPE *wordP;
-  char *t;
-
-  switch (type)
-    {
-    case 'f':
-    case 'F':
-    case 's':
-    case 'S':
-      prec = 2;
-      break;
-
-    case 'd':
-    case 'D':
-    case 'r':
-    case 'R':
-      prec = 4;
-      break;
-
-    case 'x':
-    case 'X':
-      prec = 6;
-      break;
-
-    case 'p':
-    case 'P':
-      prec = 6;
-      break;
-
-    default:
-      *sizeP = 0;
-      return _("Bad call to MD_ATOF()");
-    }
-  t = atof_ieee (input_line_pointer, type, words);
-  if (t)
-    input_line_pointer = t;
-
-  *sizeP = prec * sizeof (LITTLENUM_TYPE);
-  for (wordP = words; prec--;)
-    {
-      md_number_to_chars (litP, (long) (*wordP++), sizeof (LITTLENUM_TYPE));
-      litP += sizeof (LITTLENUM_TYPE);
-    }
-  return 0;
+  return ieee_md_atof (type, litP, sizeP, TRUE);
 }
 
 void
@@ -4849,6 +4834,7 @@ md_convert_frag_1 (fragS *fragP)
     case TAB (BRABSJUNC, BYTE):
     case TAB (BRABSJCOND, BYTE):
     case TAB (BRANCHBW, BYTE):
+    case TAB (BRANCHBWPL, BYTE):
       know (issbyte (disp));
       if (disp == 0)
 	as_bad_where (fragP->fr_file, fragP->fr_line,
@@ -4861,6 +4847,7 @@ md_convert_frag_1 (fragS *fragP)
     case TAB (BRABSJUNC, SHORT):
     case TAB (BRABSJCOND, SHORT):
     case TAB (BRANCHBW, SHORT):
+    case TAB (BRANCHBWPL, SHORT):
       fragP->fr_opcode[1] = 0x00;
       fixP = fix_new (fragP, fragP->fr_fix, 2, fragP->fr_symbol,
 		      fragP->fr_offset, 1, RELAX_RELOC_PC16);
@@ -4868,6 +4855,24 @@ md_convert_frag_1 (fragS *fragP)
       break;
     case TAB (BRANCHBWL, LONG):
       fragP->fr_opcode[1] = (char) 0xFF;
+      fixP = fix_new (fragP, fragP->fr_fix, 4, fragP->fr_symbol,
+		      fragP->fr_offset, 1, RELAX_RELOC_PC32);
+      fragP->fr_fix += 4;
+      break;
+    case TAB (BRANCHBWPL, LONG):
+      /* Here we are converting an unconditional branch into a pair of
+	 conditional branches, in order to get the range.  */
+      fragP->fr_opcode[0] = 0x66; /* bne */
+      fragP->fr_opcode[1] = 0xFF;
+      fixP = fix_new (fragP, fragP->fr_fix, 4, fragP->fr_symbol,
+		      fragP->fr_offset, 1, RELAX_RELOC_PC32);
+      fixP->fx_file = fragP->fr_file;
+      fixP->fx_line = fragP->fr_line;
+      fragP->fr_fix += 4;  /* Skip first offset */
+      buffer_address += 4;
+      *buffer_address++ = 0x67; /* beq */
+      *buffer_address++ = 0xff;
+      fragP->fr_fix += 2;  /* Skip second branch opcode */
       fixP = fix_new (fragP, fragP->fr_fix, 4, fragP->fr_symbol,
 		      fragP->fr_offset, 1, RELAX_RELOC_PC32);
       fragP->fr_fix += 4;
@@ -5030,7 +5035,8 @@ md_convert_frag_1 (fragS *fragP)
       break;
     case TAB (ABSTOPCREL, LONG):
       if (flag_keep_pcrel)
-	as_fatal (_("Conversion of PC relative displacement to absolute"));
+	as_bad_where (fragP->fr_file, fragP->fr_line,
+		      _("Conversion of PC relative displacement to absolute"));
       /* The thing to do here is force it to ABSOLUTE LONG, since
 	 ABSTOPCREL is really trying to shorten an ABSOLUTE address anyway.  */
       if ((fragP->fr_opcode[1] & 0x3F) != 0x3A)
@@ -5067,6 +5073,7 @@ md_estimate_size_before_relax (fragS *fragP, segT segment)
   switch (fragP->fr_subtype)
     {
     case TAB (BRANCHBWL, SZ_UNDEF):
+    case TAB (BRANCHBWPL, SZ_UNDEF):
     case TAB (BRABSJUNC, SZ_UNDEF):
     case TAB (BRABSJCOND, SZ_UNDEF):
       {
@@ -7223,7 +7230,7 @@ m68k_lookup_cpu (const char *arg, const struct m68k_cpu *table,
   return 0;
 }
 
-/* Set the cpu, issuing errors if it is unrecognized, or invalid */
+/* Set the cpu, issuing errors if it is unrecognized.  */
 
 static int
 m68k_set_cpu (char const *name, int allow_m, int silent)
@@ -7238,18 +7245,11 @@ m68k_set_cpu (char const *name, int allow_m, int silent)
 	as_bad (_("cpu `%s' unrecognized"), name);
       return 0;
     }
-      
-  if (selected_cpu && selected_cpu != cpu)
-    {
-      as_bad (_("already selected `%s' processor"),
-	      selected_cpu->name);
-      return 0;
-    }
   selected_cpu = cpu;
   return 1;
 }
 
-/* Set the architecture, issuing errors if it is unrecognized, or invalid */
+/* Set the architecture, issuing errors if it is unrecognized.  */
 
 static int
 m68k_set_arch (char const *name, int allow_m, int silent)
@@ -7264,14 +7264,6 @@ m68k_set_arch (char const *name, int allow_m, int silent)
 	as_bad (_("architecture `%s' unrecognized"), name);
       return 0;
     }
-      
-  if (selected_arch && selected_arch != arch)
-    {
-      as_bad (_("already selected `%s' architecture"),
-	      selected_arch->name);
-      return 0;
-    }
-  
   selected_arch = arch;
   return 1;
 }
@@ -7734,6 +7726,7 @@ m68k_elf_final_processing (void)
 	{EF_M68K_CF_ISA_B_NOUSP,mcfisa_a|mcfisa_b|mcfhwdiv},
 	{EF_M68K_CF_ISA_B,	mcfisa_a|mcfisa_b|mcfhwdiv|mcfusp},
 	{EF_M68K_CF_ISA_C,	mcfisa_a|mcfisa_c|mcfhwdiv|mcfusp},
+	{EF_M68K_CF_ISA_C_NODIV,mcfisa_a|mcfisa_c|mcfusp},
 	{0,0},
       };
       static const unsigned mac_features[][2] =

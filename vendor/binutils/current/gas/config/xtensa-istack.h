@@ -1,5 +1,5 @@
 /* Declarations for stacks of tokenized Xtensa instructions.
-   Copyright (C) 2003, 2004, 2007 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2007, 2008 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -24,7 +24,7 @@
 #include "xtensa-isa.h"
 
 #define MAX_ISTACK 12
-#define MAX_INSN_ARGS 10
+#define MAX_INSN_ARGS 64
 
 enum itype_enum
 {
@@ -46,7 +46,10 @@ typedef struct tinsn_struct
   bfd_boolean keep_wide;
   int ntok;
   expressionS tok[MAX_INSN_ARGS];
-  unsigned linenum;
+  bfd_boolean loc_directive_seen;
+  struct dwarf2_line_info debug_line;
+
+  expressionS tls_reloc;
 
   /* Filled out by relaxation_requirements:  */
   enum xtensa_relax_statesE subtype;

@@ -1,5 +1,5 @@
 /* tc-bfin.c -- Assembler for the ADI Blackfin.
-   Copyright 2005, 2006, 2007
+   Copyright 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -37,8 +37,6 @@ typedef struct yy_buffer_state *YY_BUFFER_STATE;
 extern YY_BUFFER_STATE yy_scan_string (const char *yy_str);
 extern void yy_delete_buffer (YY_BUFFER_STATE b);
 static parse_state parse (char *line);
-static void bfin_s_bss PARAMS ((int));
-static int md_chars_to_number PARAMS ((char *, int));
 
 /* Global variables. */
 struct bfin_insn *insn;
@@ -50,8 +48,14 @@ FILE *errorf;
 /* Flags to set in the elf header */
 #define DEFAULT_FLAGS 0
 
-static flagword bfin_flags = DEFAULT_FLAGS;
-static const char *bfin_pic_flag = (const char *)0;
+#ifdef OBJ_FDPIC_ELF
+# define DEFAULT_FDPIC EF_BFIN_FDPIC
+#else
+# define DEFAULT_FDPIC 0
+#endif
+
+static flagword bfin_flags = DEFAULT_FLAGS | DEFAULT_FDPIC;
+static const char *bfin_pic_flag = DEFAULT_FDPIC ? "-mfdpic" : (const char *)0;
 
 /* Registers list.  */
 struct bfin_reg_entry
@@ -246,7 +250,7 @@ bfin_pic_ptr (int nbytes)
 	  if (*input_line_pointer == ')')
 	    input_line_pointer++;
 	  else
-	    as_bad ("missing ')'");
+	    as_bad (_("missing ')'"));
 	}
       else
 	error ("missing funcdesc in picptr");
@@ -305,10 +309,13 @@ const char FLT_CHARS[] = "fFdDxX";
 const char *md_shortopts = "";
 
 #define OPTION_FDPIC		(OPTION_MD_BASE)
+#define OPTION_NOPIC		(OPTION_MD_BASE + 1)
 
 struct option md_longopts[] =
 {
-  { "mfdpic",		no_argument,		NULL, OPTION_FDPIC	   },
+  { "mfdpic",		no_argument,		NULL, OPTION_FDPIC      },
+  { "mnopic",		no_argument,		NULL, OPTION_NOPIC      },
+  { "mno-fdpic",	no_argument,		NULL, OPTION_NOPIC      },
   { NULL,		no_argument,		NULL, 0                 },
 };
 
@@ -326,6 +333,11 @@ md_parse_option (int c ATTRIBUTE_UNUSED, char *arg ATTRIBUTE_UNUSED)
     case OPTION_FDPIC:
       bfin_flags |= EF_BFIN_FDPIC;
       bfin_pic_flag = "-mfdpic";
+      break;
+
+    case OPTION_NOPIC:
+      bfin_flags &= ~(EF_BFIN_FDPIC);
+      bfin_pic_flag = 0;
       break;
     }
 
@@ -348,7 +360,7 @@ md_begin ()
 
   /* Set the default machine type. */
   if (!bfd_set_arch_mach (stdoutput, bfd_arch_bfin, 0))
-    as_warn ("Could not set architecture and machine.");
+    as_warn (_("Could not set architecture and machine."));
 
   /* Ensure that lines can begin with '(', for multiple
      register stack pops. */
@@ -493,7 +505,7 @@ parse (char *line)
   state = yyparse ();
   if (state == SEMANTIC_ERROR)
     {
-      as_bad ("Parse failed.");
+      as_bad (_("Parse failed."));
       insn = 0;
     }
 
@@ -568,7 +580,7 @@ md_apply_fix (fixS *fixP, valueT *valueP, segT seg ATTRIBUTE_UNUSED)
 	break;
       if (value < -1024 || value > 1022)
 	as_bad_where (fixP->fx_file, fixP->fx_line,
-                      "pcrel too far BFD_RELOC_BFIN_10");
+                      _("pcrel too far BFD_RELOC_BFIN_10"));
 
       /* 11 bit offset even numbered, so we remove right bit.  */
       value = value >> 1;
@@ -584,7 +596,7 @@ md_apply_fix (fixS *fixP, valueT *valueP, segT seg ATTRIBUTE_UNUSED)
 	break;
 
       if (value < -4096 || value > 4094)
-	as_bad_where (fixP->fx_file, fixP->fx_line, "pcrel too far BFD_RELOC_BFIN_12");
+	as_bad_where (fixP->fx_file, fixP->fx_line, _("pcrel too far BFD_RELOC_BFIN_12"));
       /* 13 bit offset even numbered, so we remove right bit.  */
       value = value >> 1;
       newval = md_chars_to_number (where, 2);
@@ -604,7 +616,7 @@ md_apply_fix (fixS *fixP, valueT *valueP, segT seg ATTRIBUTE_UNUSED)
 	break;
 
       if (value < -16777216 || value > 16777214)
-	as_bad_where (fixP->fx_file, fixP->fx_line, "pcrel too far BFD_RELOC_BFIN_24");
+	as_bad_where (fixP->fx_file, fixP->fx_line, _("pcrel too far BFD_RELOC_BFIN_24"));
 
       /* 25 bit offset even numbered, so we remove right bit.  */
       value = value >> 1;
@@ -619,7 +631,7 @@ md_apply_fix (fixS *fixP, valueT *valueP, segT seg ATTRIBUTE_UNUSED)
       if (!value)
 	break;
       if (value < 4 || value > 30)
-	as_bad_where (fixP->fx_file, fixP->fx_line, "pcrel too far BFD_RELOC_BFIN_5");
+	as_bad_where (fixP->fx_file, fixP->fx_line, _("pcrel too far BFD_RELOC_BFIN_5"));
       value = value >> 1;
       newval = md_chars_to_number (where, 1);
       newval = (newval & 0xf0) | (value & 0xf);
@@ -631,7 +643,7 @@ md_apply_fix (fixS *fixP, valueT *valueP, segT seg ATTRIBUTE_UNUSED)
 	break;
       value += 2;
       if (value < 4 || value > 2046)
-	as_bad_where (fixP->fx_file, fixP->fx_line, "pcrel too far BFD_RELOC_BFIN_11_PCREL");
+	as_bad_where (fixP->fx_file, fixP->fx_line, _("pcrel too far BFD_RELOC_BFIN_11_PCREL"));
       /* 11 bit unsigned even, so we remove right bit.  */
       value = value >> 1;
       newval = md_chars_to_number (where, 2);
@@ -641,14 +653,14 @@ md_apply_fix (fixS *fixP, valueT *valueP, segT seg ATTRIBUTE_UNUSED)
 
     case BFD_RELOC_8:
       if (value < -0x80 || value >= 0x7f)
-	as_bad_where (fixP->fx_file, fixP->fx_line, "rel too far BFD_RELOC_8");
+	as_bad_where (fixP->fx_file, fixP->fx_line, _("rel too far BFD_RELOC_8"));
       md_number_to_chars (where, value, 1);
       break;
 
     case BFD_RELOC_BFIN_16_IMM:
     case BFD_RELOC_16:
       if (value < -0x8000 || value >= 0x7fff)
-	as_bad_where (fixP->fx_file, fixP->fx_line, "rel too far BFD_RELOC_8");
+	as_bad_where (fixP->fx_file, fixP->fx_line, _("rel too far BFD_RELOC_16"));
       md_number_to_chars (where, value, 2);
       break;
 
@@ -690,59 +702,10 @@ md_section_align (segment, size)
 }
 
 
-/* Turn a string in input_line_pointer into a floating point
-   constant of type type, and store the appropriate bytes in
-   *litP.  The number of LITTLENUMS emitted is stored in *sizeP.
-   An error message is returned, or NULL on OK.  */
-
-/* Equal to MAX_PRECISION in atof-ieee.c.  */
-#define MAX_LITTLENUMS 6
-
 char *
-md_atof (type, litP, sizeP)
-     char   type;
-     char * litP;
-     int *  sizeP;
+md_atof (int type, char * litP, int * sizeP)
 {
-  int              prec;
-  LITTLENUM_TYPE   words [MAX_LITTLENUMS];
-  LITTLENUM_TYPE   *wordP;
-  char *           t;
-
-  switch (type)
-    {
-    case 'f':
-    case 'F':
-      prec = 2;
-      break;
-
-    case 'd':
-    case 'D':
-      prec = 4;
-      break;
-
-   /* FIXME: Some targets allow other format chars for bigger sizes here.  */
-
-    default:
-      *sizeP = 0;
-      return _("Bad call to md_atof()");
-    }
-
-  t = atof_ieee (input_line_pointer, type, words);
-  if (t)
-    input_line_pointer = t;
-  *sizeP = prec * sizeof (LITTLENUM_TYPE);
-
-  *sizeP = prec * sizeof (LITTLENUM_TYPE);
-  /* This loops outputs the LITTLENUMs in REVERSE order; in accord with
-     the littleendianness of the processor.  */
-  for (wordP = words + prec - 1; prec--;)
-    {
-      md_number_to_chars (litP, (valueT) (*wordP--), sizeof (LITTLENUM_TYPE));
-      litP += sizeof (LITTLENUM_TYPE);
-    }
-
-  return 0;
+  return ieee_md_atof (type, litP, sizeP, FALSE);
 }
 
 
@@ -915,15 +878,17 @@ bfin_start_line_hook ()
   input_line_pointer = c;
   if (maybe_end)
     {
-      label_name = (char *) xmalloc ((c - c1) + strlen ("__END") + 1);
+      label_name = (char *) xmalloc ((c - c1) + strlen ("__END") + 5);
       label_name[0] = 0;
+      strcat (label_name, "L$L$");
       strncat (label_name, c1, c-c1);
       strcat (label_name, "__END");
     }
   else /* maybe_begin.  */
     {
-      label_name = (char *) xmalloc ((c - c1) + strlen ("__BEGIN") + 1);
+      label_name = (char *) xmalloc ((c - c1) + strlen ("__BEGIN") + 5);
       label_name[0] = 0;
+      strcat (label_name, "L$L$");
       strncat (label_name, c1, c-c1);
       strcat (label_name, "__BEGIN");
     }
@@ -933,8 +898,7 @@ bfin_start_line_hook ()
   /* Loop_End follows the last instruction in the loop.
      Adjust label address.  */
   if (maybe_end)
-    line_label->sy_value.X_add_number -= last_insn_size;
-
+    ((struct local_symbol *) line_label)->lsy_value -= last_insn_size;
 }
 
 /* Special extra functions that help bfin-parse.y perform its job.  */
@@ -1178,7 +1142,7 @@ Expr_Node_Gen_Reloc_R (Expr_Node * head)
 	  note = conctcode (note1, conscode (note_reloc1 (gencode (0), op, BFD_ARELOC_BFIN_LOR, 0), NULL_CODE));
 	  break;
 	default:
-	  fprintf (stderr, "%s:%d:Unkonwn operator found for arithmetic" " relocation", __FILE__, __LINE__);
+	  fprintf (stderr, "%s:%d:Unknown operator found for arithmetic" " relocation", __FILE__, __LINE__);
 
 
 	}
@@ -1194,7 +1158,7 @@ Expr_Node_Gen_Reloc_R (Expr_Node * head)
 	  note = conctcode (note1, conscode (note_reloc1 (gencode (0), op, BFD_ARELOC_BFIN_COMP, 0), NULL_CODE));
 	  break;
 	default:
-	  fprintf (stderr, "%s:%d:Unkonwn operator found for arithmetic" " relocation", __FILE__, __LINE__);
+	  fprintf (stderr, "%s:%d:Unknown operator found for arithmetic" " relocation", __FILE__, __LINE__);
 	}
       break;
     default:
@@ -1927,15 +1891,17 @@ bfin_gen_loop (Expr_Node *expr, REG_T reg, int rop, REG_T preg)
   Expr_Node *lbegin, *lend;
 
   loopsym = expr->value.s_value;
-  lbeginsym = (char *) xmalloc (strlen (loopsym) + strlen ("__BEGIN") + 1);
-  lendsym = (char *) xmalloc (strlen (loopsym) + strlen ("__END") + 1);
+  lbeginsym = (char *) xmalloc (strlen (loopsym) + strlen ("__BEGIN") + 5);
+  lendsym = (char *) xmalloc (strlen (loopsym) + strlen ("__END") + 5);
 
   lbeginsym[0] = 0;
   lendsym[0] = 0;
 
+  strcat (lbeginsym, "L$L$");
   strcat (lbeginsym, loopsym);
   strcat (lbeginsym, "__BEGIN");
 
+  strcat (lendsym, "L$L$");
   strcat (lendsym, loopsym);
   strcat (lendsym, "__END");
 
@@ -1944,6 +1910,9 @@ bfin_gen_loop (Expr_Node *expr, REG_T reg, int rop, REG_T preg)
 
   lbegin = Expr_Node_Create (Expr_Node_Reloc, lbeginval, NULL, NULL);
   lend   = Expr_Node_Create (Expr_Node_Reloc, lendval, NULL, NULL);
+
+  symbol_remove (symbol_find (loopsym), &symbol_rootP, &symbol_lastP);
+
   return bfin_gen_loopsetup(lbegin, reg, rop, lend, preg);
 }
 

@@ -1,6 +1,6 @@
 /* tc-alpha.c - Processor-specific code for the DEC Alpha AXP CPU.
    Copyright 1989, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
+   2001, 2002, 2003, 2004, 2005, 2007, 2008 Free Software Foundation, Inc.
    Contributed by Carnegie Mellon University, 1993.
    Written by Alessandro Forin, based on earlier gas-1.38 target CPU files.
    Modified by Ken Raeburn for gas-2.x and ECOFF support.
@@ -1968,7 +1968,8 @@ assemble_insn (const struct alpha_opcode *opcode,
 	{
 	  reloc_howto_type *reloc_howto
 	    = bfd_reloc_type_lookup (stdoutput, reloc);
-	  if (reloc_howto->bitsize != reloc_operand->bits)
+	  if (reloc_operand == NULL
+	      || reloc_howto->bitsize != reloc_operand->bits)
 	    {
 	      as_bad (_("invalid relocation for field"));
 	      return;
@@ -3722,7 +3723,7 @@ s_alpha_stab (int n)
 static void
 s_alpha_coff_wrapper (int which)
 {
-  static void (* const fns[]) PARAMS ((int)) = {
+  static void (* const fns[]) (int) = {
     ecoff_directive_begin,
     ecoff_directive_bend,
     ecoff_directive_def,
@@ -4527,7 +4528,7 @@ s_alpha_stringer (int terminate)
 {
   alpha_current_align = 0;
   alpha_insn_label = NULL;
-  stringer (terminate);
+  stringer (8 + terminate);
 }
 
 /* Hook the normal space processing to reset known alignment.  */
@@ -4738,7 +4739,6 @@ const pseudo_typeS md_pseudo_table[] =
 
 /* @@@ GP selection voodoo.  All of this seems overly complicated and
    unnecessary; which is the primary reason it's for ECOFF only.  */
-static inline void maybe_set_gp PARAMS ((asection *));
 
 static inline void
 maybe_set_gp (asection *sec)
@@ -5020,64 +5020,24 @@ md_section_align (segT seg, valueT size)
    of LITTLENUMS emitted is stored in *SIZEP.  An error message is
    returned, or NULL on OK.  */
 
-/* Equal to MAX_PRECISION in atof-ieee.c.  */
-#define MAX_LITTLENUMS 6
-
-extern char *vax_md_atof (int, char *, int *);
-
 char *
 md_atof (int type, char *litP, int *sizeP)
 {
-  int prec;
-  LITTLENUM_TYPE words[MAX_LITTLENUMS];
-  LITTLENUM_TYPE *wordP;
-  char *t;
+  extern char *vax_md_atof (int, char *, int *);
 
   switch (type)
     {
       /* VAX floats.  */
     case 'G':
-      /* VAX md_atof doesn't like "G" for some reason.  */
+      /* vax_md_atof() doesn't like "G" for some reason.  */
       type = 'g';
     case 'F':
     case 'D':
       return vax_md_atof (type, litP, sizeP);
 
-      /* IEEE floats.  */
-    case 'f':
-      prec = 2;
-      break;
-
-    case 'd':
-      prec = 4;
-      break;
-
-    case 'x':
-    case 'X':
-      prec = 6;
-      break;
-
-    case 'p':
-    case 'P':
-      prec = 6;
-      break;
-
     default:
-      *sizeP = 0;
-      return _("Bad call to MD_ATOF()");
+      return ieee_md_atof (type, litP, sizeP, FALSE);
     }
-  t = atof_ieee (input_line_pointer, type, words);
-  if (t)
-    input_line_pointer = t;
-  *sizeP = prec * sizeof (LITTLENUM_TYPE);
-
-  for (wordP = words + prec - 1; prec--;)
-    {
-      md_number_to_chars (litP, (long) (*wordP--), sizeof (LITTLENUM_TYPE));
-      litP += sizeof (LITTLENUM_TYPE);
-    }
-
-  return 0;
 }
 
 /* Take care of the target-specific command-line options.  */
@@ -5709,5 +5669,4 @@ alpha_frob_file_before_adjust (void)
 /* The Alpha has support for some VAX floating point types, as well as for
    IEEE floating point.  We consider IEEE to be the primary floating point
    format, and sneak in the VAX floating point support here.  */
-#define md_atof vax_md_atof
 #include "config/atof-vax.c"
