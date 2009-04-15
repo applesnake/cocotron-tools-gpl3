@@ -1,3 +1,119 @@
+2008-08-28  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ia64.h (ia64_resource_specifier): Add IA64_RS_CR_IIB.  Update
+	IA64_RS_CR.
+
+2008-08-01  Peter Bergner  <bergner@vnet.ibm.com>
+
+	* ppc.h (PPC_OPCODE_VSX, PPC_OPERAND_VSR): New.
+
+2008-07-30  Michael J. Eager  <eager@eagercon.com>
+
+	* ppc.h (PPC_OPCODE_405): Define.
+	(PPC_OPERAND_FSL, PPC_OPERAND_FCR, PPC_OPERAND_UDI): Define.
+
+2008-06-13  Peter Bergner  <bergner@vnet.ibm.com>
+
+	* ppc.h (ppc_cpu_t): New typedef.
+	(struct powerpc_opcode <flags>): Use it.
+	(struct powerpc_operand <insert, extract>): Likewise.
+	(struct powerpc_macro <flags>): Likewise.
+
+2008-06-12  Adam Nemet  <anemet@caviumnetworks.com>
+
+	* mips.h: Document new field descriptors +x, +X, +p, +P, +s, +S.
+	Update comment before MIPS16 field descriptors to mention MIPS16.
+	(OP_SH_BBITIND, OP_MASK_BBITIND): New bit mask and shift count for
+	BBIT.
+	(OP_SH_CINSPOS, OP_MASK_CINSPOS, OP_SH_CINSLM1, OP_MASK_CINSLM1):
+	New bit masks and shift counts for cins and exts.
+
+	* mips.h: Document new field descriptors +Q.
+	(OP_SH_SEQI, OP_MASK_SEQI): New bit mask and shift count for SEQI.
+
+2008-04-28  Adam Nemet  <anemet@caviumnetworks.com>
+
+	* mips.h (INSN_MACRO): Move it up to the the pinfo macros.
+	(INSN2_M_FP_S, INSN2_M_FP_D): New pinfo2 macros.
+
+2008-04-14  Edmar Wienskoski  <edmar@freescale.com>
+
+	* ppc.h: (PPC_OPCODE_E500MC): New.
+
+2008-04-03  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386.h (MAX_OPERANDS): Set to 5.
+	(MAX_MNEM_SIZE): Changed to 20.
+
+2008-03-28  Eric B. Weddington  <eric.weddington@atmel.com>
+
+	* avr.h (AVR_ISA_TINY3): Define new opcode set for attiny167.
+
+2008-03-09  Paul Brook  <paul@codesourcery.com>
+
+	* arm.h (FPU_VFP_EXT_D32, FPU_VFP_V3D16, FPU_ARCH_VFP_V3D16): Define.
+
+2008-03-04  Paul Brook  <paul@codesourcery.com>
+
+	* arm.h (ARM_EXT_V6M, ARM_EXT_BARRIER, ARM_EXT_THUMB_MSR): Define.
+	(ARM_AEXT_V6T2, ARM_AEXT_V7_ARM, ARM_AEXT_V7M): Use new flags.
+	(ARM_AEXT_V6M, ARM_ARCH_V6M): Define.
+
+2008-02-27  Denis Vlasenko  <vda.linux@googlemail.com>
+	    Nick Clifton  <nickc@redhat.com>
+
+	PR 3134
+	* h8300.h (h8_opcodes): Add an encoding for a mov.l instruction
+	with a 32-bit displacement but without the top bit of the 4th byte
+	set.	
+
+2008-02-18  M R Swami Reddy <MR.Swami.Reddy@nsc.com>
+
+	* cr16.h (cr16_num_optab): Declared.
+
+2008-02-14  Hakan Ardo  <hakan@debian.org>
+
+	PR gas/2626
+	* avr.h (AVR_ISA_2xxe): Define.
+
+2008-02-04  Adam Nemet  <anemet@caviumnetworks.com>
+
+	* mips.h: Update copyright.
+	(INSN_CHIP_MASK): New macro.
+	(INSN_OCTEON): New macro.
+	(CPU_OCTEON): New macro.
+	(OPCODE_IS_MEMBER): Handle Octeon instructions.
+
+2008-01-23  Eric B. Weddington  <eric.weddington@atmel.com>
+
+	* avr.h (AVR_ISA_RF401): Add new opcode set for at86rf401.
+
+2008-01-03  Eric B. Weddington  <eric.weddington@atmel.com>
+
+	* avr.h (AVR_ISA_USB162): Add new opcode set.
+	(AVR_ISA_AVR3): Likewise.
+
+2007-11-29  Mark Shinwell  <shinwell@codesourcery.com>
+
+	* mips.h (INSN_LOONGSON_2E): New.
+	(INSN_LOONGSON_2F): New.
+	(CPU_LOONGSON_2E): New.
+	(CPU_LOONGSON_2F): New.
+	(OPCODE_IS_MEMBER): Update for Loongson-2E and -2F flags.
+
+2007-11-29  Mark Shinwell  <shinwell@codesourcery.com>
+
+	* mips.h (INSN_ISA*): Redefine certain values as an
+	enumeration.  Update comments.
+	(mips_isa_table): New.
+	(ISA_MIPS*): Redefine to match enumeration.
+	(OPCODE_IS_MEMBER): Modify to correctly test new INSN_ISA*
+	values.
+
+2007-08-08  Ben Elliston  <bje@au.ibm.com>
+
+	* ppc.h (PPC_OPCODE_PPCPS): New.
+
 2007-07-03  Nathan Sidwell  <nathan@codesourcery.com>
 
 	* m68k.h: Document j K & E.
@@ -299,6 +415,10 @@
 	(pa_opcode): Revise ordering rules.  Add/move strict pa10 variants
 	before corresponding pa11 opcodes.  Add strict pa10 register-immediate
 	entries for "fdc".
+
+2005-09-30  Catherine Moore  <clm@cm00re.com>
+
+	* bfin.h: New file.
 
 2005-09-24  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
 

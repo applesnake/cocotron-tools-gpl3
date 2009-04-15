@@ -1,6 +1,227 @@
+2008-08-20  Bob Wilson  <bob.wilson@acm.org>
+
+	* xtensa.h (R_XTENSA_TLSDESC_FN, R_XTENSA_TLSDESC_ARG)
+	(R_XTENSA_TLS_DTPOFF, R_XTENSA_TLS_TPOFF, R_XTENSA_TLS_FUNC)
+	(R_XTENSA_TLS_ARG, R_XTENSA_TLS_CALL): New.
+
+2008-08-08  Richard Sandiford  <rdsandiford@googlemail.com>
+	    Daniel Jacobowitz  <dan@codesourcery.com>
+	    Catherine Moore  <clm@codesourcery.com>
+	    Mark Shinwell  <shinwell@codesourcery.com>
+
+	* mips.h (STO_MIPS_PLT, ELF_ST_IS_MIPS_PLT, ELF_ST_SET_MIPS_PLT)
+	(STO_MIPS_PIC, DT_MIPS_PLTGOT, DT_MIPS_RWPLT): New macros.
+
+2008-08-04  Markus Weiss  <weissms@aros.org>
+
+	* common.h (ELFOSABI_AROS): Update comment.
+
+2008-07-26  Michael Eager <eager@eagercon.com>
+
+	* ppc.h: Add description of single-precision.
+
+2008-07-21  Luis Machado  <luisgpm@br.ibm.com>
+
+	* common.h: Define NT_PPC_VSX.
+
+2008-07-10  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* mips.h (ELF_ST_IS_MIPS16, ELF_ST_SET_MIPS16): New macros.
+
+2008-06-18  M R Swami Reddy <MR.Swami.Reddy@nsc.com>
+
+	* common.h (EM_CR16): Correct value.
+	(EM_CR16): Rename to EM_CR16_OLD.
+
+2008-06-12  DJ Delorie  <dj@redhat.com>
+
+	* common.h (EM_M32C_NEW): Rename to EM_M32C.
+	(EM_M32C): Rename to EM_M32C_OLD.
+
+2008-06-12  Joseph Myers  <joseph@codesourcery.com>
+
+	* common.h: Update e_machine table.
+
+2008-06-09  Takashi Yoshii  <yoshii.takashi@renesas.com>
+
+	* sh.h (EF_SH_BFD_TABLE): Set bfd_mach_sh for EF_SH_UNKNOWN.
+
+2008-06-09  Joseph Myers  <joseph@codesourcery.com>
+
+	* common.h: Change registry@caldera.com to registry@sco.com.
+
+2008-05-21  Nick Clifton  <nickc@redhat.com>
+
+	* reloc-macros.h: Add a comment about the use of the
+	END_RELOC_NUMBERS symbol as a sentinel value.
+
+2008-05-15  Christophe Lyon  <christophe.lyon@st.com>
+	
+	* arm.h (END_RELOC_NUMBERS): Provide a maximum value.
+
+2008-04-16  David S. Miller  <davem@davemloft.net>
+
+	* elf/sparc.h (R_SPARC_GOTDATA_HIX22,
+	R_SPARC_GOTDATA_LOX10, R_SPARC_GOTDATA_OP_HIX22,
+	R_SPARC_GOTDATA_OP_LOX10, R_SPARC_GOTDATA_OP,
+	R_SPARC_H34, R_SPARC_SIZE32, R_SPARC_SIZE64): New relocs.
+
+2008-03-24  Ian Lance Taylor  <iant@google.com>
+
+	* common.h (NT_GNU_GOLD_VERSION): Define.
+
+2008-03-13  Alan Modra  <amodra@bigpond.net.au>
+
+	* internal.h (Elf_Internal_Shdr): Change sh_link and sh_info from
+	unsigned long to unsigned int.  Change sh_addralign to bfd_vma.
+	Order struct as for external version.
+
+2008-03-12  Alan Modra  <amodra@bigpond.net.au>
+
+	PR 5900
+	* common.h (SHN_BAD): Delete.
+	(SHN_LORESERVE .. SHN_HIRESERVE): Move to..
+	* external.h: ..here.
+	* internal.h (SHN_LORESERVE, SHN_HIRESERVE): Define.
+	(SHN_LOPROC, SHN_HIPROC, SHN_LOOS, SHN_HIOS): Define.
+	(SHN_ABS, SHN_COMMON, SHN_XINDEX, SHN_BAD): Define.
+
+2008-03-12  Alan Modra  <amodra@bigpond.net.au>
+
+	* cr16c.h (SHN_CR16C_FCOMMON): Define using SHN_LORESERVE.
+	(SHN_CR16C_NCOMMON): Likewise.
+	* hppa.h (SHN_PARISC_ANSI_COMMON): Likewise.
+	(SHN_PARISC_HUGE_COMMON): Likewise.
+	* ia64.h (SHN_IA_64_ANSI_COMMON): Likewise.
+	(SHN_IA_64_VMS_SYMVEC): Define using SHN_LOOS.
+	* m32r.h (SHN_M32R_SCOMMON): Define using SHN_LORESERVE.
+	* mips.h (SHN_MIPS_ACOMMON, SHN_MIPS_TEXT): Likewise.
+	(SHN_MIPS_DATA, SHN_MIPS_SCOMMON, SHN_MIPS_SUNDEFINED): Likewise.
+	* score.h (SHN_SCORE_TEXT, SHN_SCORE_DATA): Likewise.
+	(SHN_SCORE_SCOMMON): Likewise.
+	* sparc.h (SHN_BEFORE, SHN_AFTER): Likewise.
+	* v850.h (SHN_V850_SCOMMON, SHN_V850_TCOMMON): Likewise.
+	(SHN_V850_ZCOMMON): Likewise.
+	* x86-64.h (SHN_X86_64_LCOMMON): Likewise.
+
+2008-03-03  Pallavi Tambay  <pallavi.tambay@amd.com>
+
+	* dwarf2.h: (enum dwarf_location_atom): Add new DW_OP:
+	DW_OP_PGI_omp_thread_num.
+
+2008-02-04  Adam Nemet  <anemet@caviumnetworks.com>
+
+	* mips.h: Update copyright.
+	(E_MIPS_MACH_OCTEON): New macro.
+
+2008-01-30  Tristan Gingold  <gingold@adacore.com>
+
+	Add OpenVMS extensions.
+	* ia64.h (SHF_IA_64_VMS_GLOBAL, SHF_IA_64_VMS_OVERLAID)
+	(SHF_IA_64_VMS_SHARED, SHF_IA_64_VMS_VECTOR)
+	(SHF_IA_64_VMS_ALLOC_64BIT, SHF_IA_64_VMS_PROTECTED)
+	(SHT_IA_64_VMS_TRACE, SHT_IA_64_VMS_TIE_SIGNATURES)
+	(SHT_IA_64_VMS_DEBUG, SHT_IA_64_VMS_DEBUG_STR)
+	(SHT_IA_64_VMS_LINKAGES, SHT_IA_64_VMS_SYMBOL_VECTOR)
+	(SHT_IA_64_VMS_FIXUP, DT_IA_64_VMS_SUBTYPE)
+	(DT_IA_64_VMS_IMGIOCNT, DT_IA_64_VMS_LNKFLAGS)
+	(DT_IA_64_VMS_VIR_MEM_BLK_SIZ, DT_IA_64_VMS_IDENT)
+	(DT_IA_64_VMS_NEEDED_IDENT, DT_IA_64_VMS_IMG_RELA_CNT)
+	(DT_IA_64_VMS_SEG_RELA_CNT, DT_IA_64_VMS_FIXUP_RELA_CNT)
+	(DT_IA_64_VMS_FIXUP_NEEDED, DT_IA_64_VMS_SYMVEC_CNT)
+	(DT_IA_64_VMS_XLATED, DT_IA_64_VMS_STACKSIZE)
+	(DT_IA_64_VMS_UNWINDSZ, DT_IA_64_VMS_UNWIND_CODSEG)
+	(DT_IA_64_VMS_UNWIND_INFOSEG, DT_IA_64_VMS_LINKTIME)
+	(DT_IA_64_VMS_SEG_NO, DT_IA_64_VMS_SYMVEC_OFFSET)
+	(DT_IA_64_VMS_SYMVEC_SEG, DT_IA_64_VMS_UNWIND_OFFSET)
+	(DT_IA_64_VMS_UNWIND_SEG, DT_IA_64_VMS_STRTAB_OFFSET)
+	(DT_IA_64_VMS_SYSVER_OFFSET, DT_IA_64_VMS_IMG_RELA_OFF)
+	(DT_IA_64_VMS_SEG_RELA_OFF, DT_IA_64_VMS_FIXUP_RELA_OFF)
+	(DT_IA_64_VMS_PLTGOT_OFFSET, DT_IA_64_VMS_PLTGOT_SEG)
+	(DT_IA_64_VMS_FPMODE, SHN_IA_64_VMS_SYMVEC): Define
+
+2008-01-16  Mark Kettenis  <kettenis@gnu.org>
+
+	* common.h (AT_SUN_AUXFLAGS): Define.
+
+2007-12-11  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* dwarf2.h (DW_AT_hi_user): Correct value.
+
+2007-12-07  Bob Wilson  <bob.wilson@acm.org>
+
+	* xtensa.h (R_XTENSA_32_PCREL): New.
+
+2007-11-29  Mark Shinwell  <shinwell@codesourcery.com>
+
+	* mips.h (E_MIPS_MACH_LS2E): New.
+	(E_MIPS_MACH_LS2F): New.
+
+2007-11-28  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* internal.h (ELF_IS_SECTION_IN_SEGMENT): Adjust to cope with
+	segments at the end of memory.
+
+2007-11-17  Thiemo Seufer  <ths@mips.com>
+
+	* mips.h (Tag_GNU_MIPS_ABI_FP): Mention -mips32r2 -mfp64 variant
+	in comment.
+
+2007-11-16  Nick Clifton  <nickc@redhat.com>
+
+	* dwarf2.h: Mention the location of the DWARF3 spec on the web.
+	(DW_AT_stride_size): Rename to DW_AT_bit_stride.
+	(DW_AT_stride): Rename to DW_AT_byte_stride.
+
+2007-11-08  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* vxworks.h: New.
+
+2007-10-30  Nick Clifton  <nickc@redhat.com>
+
+	* mn10300.h (R_MN10300_ALIGN): Define.
+
+2007-10-25  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* ppc.h (Tag_GNU_Power_ABI_Vector): New.
+
+2007-10-19  Nick Clifton  <nickc@redhat.com>
+
+	* mn10300.h: Add R_MN10300_SYM_DIFF reloc.
+
+2007-10-18  Roland McGrath  <roland@redhat.com>
+
+	* common.h (NT_PPC_VMX): New macro.
+
+2007-10-01  M R Swami Reddy <MR.Swami.Reddy@nsc.com>
+
+	* cr16.h: Updated with new relocaction macros.
+
+2007-09-17  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/3281
+	PR binutils/5037
+	* internal.h (elf_segment_map): Add p_size and p_size_valid.
+	(ELF_IS_SECTION_IN_SEGMENT): Allow SHF_TLS sections in
+	PT_GNU_RELRO segments.
+
+2007-09-11  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* m68k.h (EF_M68K_CF_ISA_C_NODIV): New.
+
 2007-08-25  Ulrich Weigand  <uweigand@de.ibm.com>
 
 	* common.h (NT_SPU): Define.
+
+2007-08-16  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* common.h: Revert last change.
+
+2007-08-16  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* common.h (PT_GNU_STACK): Renamed to ...
+	(PT_GNU_ATTR): This.
+	(PT_GNU_STACK): New.  Make an alias of PT_GNU_ATTR.
 
 2007-07-09  Roland McGrath  <roland@redhat.com>
 
@@ -137,6 +358,10 @@
 	(EF_SCORE_FIXDEP): Redefine EF_SCORE_FIXDEP as 0x40000000.
 	(EF_SCORE_HASENTRY): Delete.
 
+2006-10-17  Mark Shinwell  <shinwell@codesourcery.com>
+
+	* arm.h: Define TAG_CPU_ARCH_* constants.
+
 2006-09-17  Mei Ligang  <ligang@sunnorth.com.cn>
 
 	* score.h: New file.
@@ -171,6 +396,21 @@
 2006-05-24  Bjoern Haase  <bjoern.m.haase@web.de>
 
 	* avr.h: Add E_AVR_MACH_AVR6, R_AVR_LO8_LDI_GS and R_AVR_HI8_LDI_GS.
+
+2006-03-25  Bernd Schmidt  <bernd.schmidt@analog.com>
+
+	* bfin.h (R_BFIN_GOT17M4, R_BFIN_GOTHI, R_BFIN_GOTLO,
+	R_BFIN_FUNCDESC, R_BFIN_FUNCDESC_GOT17M4,  R_BFIN_FUNCDESC_GOTHI,
+	R_BFIN_FUNCDESC_GOTLO, R_BFIN_FUNCDESC_VALUE,
+	R_BFIN_FUNCDESC_GOTOFF17M4, R_BFIN_FUNCDESC_GOTOFFHI,
+	R_BFIN_FUNCDESC_GOTOFFLO, R_BFIN_GOTOFF17M4, R_BFIN_GOTOFFHI,
+	R_BFIN_GOTOFFLO): New relocs.
+	(EF_BFIN_PIC, EF_BFIN_FDPIC, EF_BFIN_PIC_FLAGS): New macros.
+
+2006-03-23  Michael Matz  <matz@suse.de>
+
+	* x86-64.h: Add the new relocations with their official
+	numbers.
 
 2006-03-22  Richard Sandiford  <richard@codesourcery.com>
 	    Daniel Jacobowitz  <dan@codesourcery.com>
@@ -231,6 +471,10 @@
 	(DW_LANG_PLI, DW_LANG_ObjC, DW_LANG_ObjC_plus_plus, DW_LANG_UPC,
 	DW_LANG_D): New.
 
+2006-02-06  Steve Ellcey  <sje@cup.hp.com>
+
+	* ia64.h (SHF_IA_64_HP_TLS): New.
+
 2006-02-24  DJ Delorie  <dj@redhat.com>
 
 	* m32c.h: Add relax relocs.
@@ -280,6 +524,10 @@
 	* common.h (EM_MT): Renamed.
 	* mt.h: Rename relocs, cpu & other defines.
 
+2005-12-12  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* mt.h: Renamed from ms1.h
+
 2005-12-12  Paul Brook  <paul@codesourcery.com>
 
 	* arm.h (elf32_arm_get_eabi_attr_int): Add prototype.
@@ -289,6 +537,15 @@
 	PR 1150
 	* mips.h (STO_OPTIONAL): Define.
 	(ELF_MIPS_IS_OPTIONAL): Define.
+
+2005-11-07  Nathan Sidwell  <nathan@codesourcery.com>
+
+	Add ms2.
+	* ms1.h (EF_MS1_CPU_MS2): New.
+
+2005-11-06  John David Anglin  <dave.anglin@nrc-crnc.gc.ca>
+
+	* hppa.h (R_PARISC_DIR64WR, R_PARISC_DIR64DR): Remove relocs.
 
 2005-09-30  Catherine Moore  <clm@cm00re.com>
 
@@ -345,6 +602,10 @@
 	Add support for Renesas M32C and M16C.
 	* common.h (EM_M32C): New machine number.
 	* m32c.h: New file.
+
+2005-06-17  Jakub Jelinek  <jakub@redhat.com>
+
+	* external.h (GRP_ENTRY_SIZE): Define.
 
 2005-06-17  Jan Beulich  <jbeulich@novell.com>
 
