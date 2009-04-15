@@ -84,6 +84,11 @@
 	mov	ar.itc = r1
 	;;
 
+// AR[RUC]
+	mov	ar.ruc = r1
+	mov	ar.ruc = r1
+	;;
+
 // AR[K]
 	mov	ar.k2 = r3
 	mov	ar.k2 = r3
@@ -163,6 +168,15 @@
 // CR[IHA]
 	mov	cr.iha = r13
 	mov	cr.iha = r14
+	;;
+
+// CR[IIB%]
+	mov	cr.iib0 = r15
+	mov	cr.iib0 = r16
+	;;
+
+	mov	cr.iib1 = r15
+	mov	cr.iib1 = r16
 	;;
 
 // CR[IIM]
