@@ -25,11 +25,11 @@
 ..
 .\" Set up some character translations and predefined strings.  \*(-- will
 .\" give an unbreakable dash, \*(PI will give pi, \*(L" will give a left
-.\" double quote, and \*(R" will give a right double quote.  \*(C+ will
-.\" give a nicer C++.  Capital omega is used to do unbreakable dashes and
-.\" therefore won't be available.  \*(C` and \*(C' expand to `' in nroff,
-.\" nothing in troff, for use with C<>.
-.tr \(*W-
+.\" double quote, and \*(R" will give a right double quote.  | will give a
+.\" real vertical bar.  \*(C+ will give a nicer C++.  Capital omega is used to
+.\" do unbreakable dashes and therefore won't be available.  \*(C` and \*(C'
+.\" expand to `' in nroff, nothing in troff, for use with C<>.
+.tr \(*W-|\(bv\*(Tr
 .ds C+ C\v'-.1v'\h'-1p'\s-2+\h'-1p'+\s0\v'.1v'\h'-1p'
 .ie n \{\
 .    ds -- \(*W-
@@ -128,7 +128,7 @@
 .\" ========================================================================
 .\"
 .IX Title "GPROF 1"
-.TH GPROF 1 "2007-08-06" "binutils-2.17.90" "GNU"
+.TH GPROF 1 "2008-09-10" "binutils-2.18.90" "GNU"
 .SH "NAME"
 gprof \- display call graph profile data
 .SH "SYNOPSIS"
@@ -406,13 +406,13 @@ function name to object file mappings.  The format of the file is similar to
 the output of the program \f(CW\*(C`nm\*(C'\fR.
 .Sp
 .Vb 8
-\&        c\-parse.o:00000000 T yyparse
-\&        c\-parse.o:00000004 C yyerrflag
-\&        c\-lang.o:00000000 T maybe_objc_method_name
-\&        c\-lang.o:00000000 T print_lang_statistics
-\&        c\-lang.o:00000000 T recognize_objc_keyword
-\&        c\-decl.o:00000000 T print_lang_identifier
-\&        c\-decl.o:00000000 T print_lang_type
+\&        c-parse.o:00000000 T yyparse
+\&        c-parse.o:00000004 C yyerrflag
+\&        c-lang.o:00000000 T maybe_objc_method_name
+\&        c-lang.o:00000000 T print_lang_statistics
+\&        c-lang.o:00000000 T recognize_objc_keyword
+\&        c-decl.o:00000000 T print_lang_identifier
+\&        c-decl.o:00000000 T print_lang_type
 \&        ...
 .Ve
 .Sp

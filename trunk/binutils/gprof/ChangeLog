@@ -1,3 +1,138 @@
+2008-09-29  Nick Clifton  <nickc@redhat.com>
+
+	* po/vi.po: Updated Vietnamese translation.
+
+2008-09-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* po/ro.po: New file.
+
+2008-09-09  Alan Modra  <amodra@bigpond.net.au>
+
+	* po/gprof.pot: Regenerate.
+
+2008-08-25  Alan Modra  <amodra@bigpond.net.au>
+
+	* gmon_io.h: Don't include sysdep.h here.
+	(O_BINARY, SET_BINARY): Don't define here.
+	* gmon_io.c: Include "binary-io.h".
+	(gmon_out_read): Remove #ifdef SET_BINARY.
+	* Makefile.am: Run "make dep-am"
+	* Makefile.in: Regenerate.
+
+2008-08-24  Alan Modra  <amodra@bigpond.net.au>
+
+	* configure.in: Update a number of obsolete autoconf macros.
+
+2008-08-15  Alan Modra  <amodra@bigpond.net.au>
+
+	PR 6526
+	* configure.in: Invoke AC_USE_SYSTEM_EXTENSIONS.
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+	* gconfig.in: Regenerate.
+
+2008-08-05  Brian Dessent  <brian@dessent.net>
+
+	* gmon_io.c (gmon_out_read): When reading old format gmon.out,
+	set num_histograms and hist_scale.
+
+2008-08-04  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am (POTFILES.in): Set LC_ALL=C.
+	* Makefile.in: Regenerate.
+
+2008-07-30  Alan Modra  <amodra@bigpond.net.au>
+
+	* corefile.c, symtab.c: Silence gcc warnings.
+
+2008-06-19  Andreas Schwab  <schwab@suse.de>
+
+	* basic_blocks.c: Always include "gprof.h" first.
+	* cg_arcs.c: Likewise.
+	* cg_dfn.c: Likewise.
+	* cg_print.c: Likewise.
+	* corefile.c: Likewise.
+	* gprof.c: Likewise.
+	* hist.c: Likewise.
+	* search_list.c: Likewise.
+	* sym_ids.c: Likewise.
+	* utils.c: Likewise.
+
+2008-06-17  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
+
+	* configure: Regenerate.
+
+2008-06-04  Nick Clifton  <nickc@redhat.com>
+
+	* po/nl.po: New file: Dutch translation.
+	* configure.in (ALL_LINGUAS): Add nl.
+	* configure: Regenerate.
+
+2008-05-14  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2008-04-23  Paolo Bonzini  <bonzini@gnu.org>
+
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+
+2008-03-31  Nick Clifton  <nickc@redhat.com>
+
+	* po/fr.po: Updated French translation.
+
+2008-03-17  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
+
+	* aclocal.m4: Regenerate.
+	* configure: Likewise.
+	* Makefile.in: Likewise.
+
+2008-03-13  Alan Modra  <amodra@bigpond.net.au>
+
+	* configure: Regenerate.
+
+2008-02-06  Nick Clifton  <nickc@redhat.com>
+
+	* po/ms.po: Updated Malasian translation.
+
+2008-02-04  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR 5715
+	* configure: Regenerated.
+
+2007-10-24  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* configure.in: Move AM_PROG_LIBTOOL after AC_GNU_SOURCE.
+	* configure: Regenerated.
+
+2007-10-24  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am (INCLUDES): Remove -D_GNU_SOURCE.
+	* configure.in: Invoke AC_GNU_SOURCE.
+	* Makefile.in: Regenerate.
+	* configure: Regenerate.
+	* gconfig.in: Regenerate.
+
+2007-10-12  Michael Haubenwallner  <haubi@gentoo.org>
+
+	PR gprof/5147
+	* configure.in: Add check for fabs() being in libm.
+	* configure: Regenerate.
+
+2007-09-25  Robert Norton  <rnorton@broadcom.com>
+
+	* cg_print.c (sort_members): Include the final member on the list
+	in the sort.
+
+2007-09-17  Nick Clifton  <nickc@redhat.com>
+
+	* po/es.po: Updated Spanish translation.
+
+2007-08-30  Nick Clifton  <nickc@redhat.com>
+
+	* po/fi.po: Updated Finnish translation.
+
 2007-08-24  Daniel Jacobowitz  <dan@codesourcery.com>
 
 	* po/sv.po: Updated Swedish translation.
@@ -44,7 +179,7 @@
 	flat_bl.m, gmon_io.c, gmon_io.h, gmon_out.h, hist.c, hist.h,
 	search_list.c, search_list.h, source.c, source.h, sym_ids.c,
 	sym_ids.h, symtab.c, symtab.h: Likewise.
-	
+
 2007-07-05  Tristan Gingold  <gingold@adacore.com>
 
 	* corefile.c (core_sym_class): Do not discard nested subprograms.
@@ -138,7 +273,7 @@
 	clip symbol address range here.
 	* vax.c	(vax_find_call): Don't check for
 	core_text_space, or clip the symbol's address range here.
-	Use hist_check_address to check call's target address.	
+	Use hist_check_address to check call's target address.
 	* sparc.c: Likewise.
 	* tahoe.c: Likewise.
 	* i386.c: Likewise.
@@ -146,7 +281,7 @@
 	address for code accesses, just like other machine-specific
 	routines do.
 	* gprof.texi: Adjust for the new logic.
-	
+
 2007-03-28  Richard Sandiford  <richard@codesourcery.com>
 	    Phil Edwards  <phil@codesourcery.com>
 
@@ -304,8 +439,8 @@
 2006-04-06  Carlos O'Donell  <carlos@codesourcery.com>
 
 	* po/Make-in: Add install-html target.
-	* Makefile.am: Add install-html, install-html-am and 
-	install-html-recursive targets. 
+	* Makefile.am: Add install-html, install-html-am and
+	install-html-recursive targets.
 	* Makefile.in: Regenerate.
 	* configure.in: AC_SUBST datarootdir, docdir, htmldir.
 	* configure: Regenerate.
