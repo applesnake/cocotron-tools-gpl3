@@ -1296,6 +1296,8 @@ lookup_regindex (const char *name, int specifier)
         return 32;
       else if (strstr (name, "[ITC]"))
         return 44;
+      else if (strstr (name, "[RUC]"))
+        return 45;
       else if (strstr (name, "[PFS]"))
         return 64;
       else if (strstr (name, "[LC]"))
@@ -1435,6 +1437,8 @@ lookup_specifier (const char *name)
         return IA64_RS_ARb;
       if (strstr (name, "BR%") != NULL)
         return IA64_RS_BR;
+      if (strstr (name, "CR[IIB%]") != NULL)
+        return IA64_RS_CR_IIB;
       if (strstr (name, "CR[IRR%]") != NULL)
         return IA64_RS_CR_IRR;
       if (strstr (name, "CR[LRR%]") != NULL)
@@ -1550,9 +1554,14 @@ print_dependency_table ()
 	    static const char *mode_str[] = { "RAW", "WAW", "WAR" };
 
 	    if (rdeps[i]->total_chks == 0)
-	      warn (_("Warning: rsrc %s (%s) has no chks%s\n"), 
-		    rdeps[i]->name, mode_str[rdeps[i]->mode],
-		    rdeps[i]->total_regs ? "" : " or regs");
+	      {
+		if (rdeps[i]->total_regs)
+		  warn (_("Warning: rsrc %s (%s) has no chks\n"), 
+			rdeps[i]->name, mode_str[rdeps[i]->mode]);
+		else
+		  warn (_("Warning: rsrc %s (%s) has no chks or regs\n"), 
+			rdeps[i]->name, mode_str[rdeps[i]->mode]);
+	      }
 	    else if (rdeps[i]->total_regs == 0)
 	      warn (_("rsrc %s (%s) has no regs\n"),
 		    rdeps[i]->name, mode_str[rdeps[i]->mode]);
