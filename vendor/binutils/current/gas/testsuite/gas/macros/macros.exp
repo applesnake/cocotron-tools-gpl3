@@ -53,6 +53,7 @@ if { ![istarget hppa*-*-*] || [istarget *-*-linux*] } {
 run_dump_test app1
 run_dump_test app2
 run_dump_test app3
+remote_download host "$srcdir/$subdir/app4b.s"
 run_dump_test app4
 
 run_list_test badarg ""
@@ -76,3 +77,8 @@ run_list_test redef ""
 if [string match "" [lindex [gas_run ../all/excl.s "-o /dev/null" ""] 0]] {
     run_dump_test paren
 }
+
+# PR 58925: A .exitm pseudo-op outside of a macro definition
+#  prevented the assembler from parsing the rest of the file,
+#  and hence catching an erroroneous instruction.
+gas_test_error "exit.s" "" ".exitm outside of a macro"
