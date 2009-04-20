@@ -396,8 +396,8 @@ ldfile_open_file_search (const char *arch,
 		 frameworkDirectory,lib, entry->filename, arch, suffix);
 /* cocotron.org end */
       else
-	string = concat (search->name, slash, lib, entry->filename,
-			 arch, suffix, (const char *) NULL);
+        string = concat (search->name, slash, entry->filename,
+                         (const char *) 0);
 
       if (ldfile_try_open_bfd (string, entry))
 	{
