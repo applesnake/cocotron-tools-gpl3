@@ -29,7 +29,7 @@ along with GCC; see the file COPYING3.  If not see
 
 bool objc_init (void);
 const char *objc_printable_name (tree, int);
-tree objc_get_callee_fndecl (const_tree);
+tree objc_get_callee_fndecl (tree);
 void objc_finish_file (void);
 tree objc_fold_obj_type_ref (tree, tree);
 enum gimplify_status objc_gimplify_expr (tree *, tree *, tree *);
@@ -54,6 +54,7 @@ enum gimplify_status objc_gimplify_expr (tree *, tree *, tree *);
 #define METHOD_ADD_ARGS_ELLIPSIS_P(DECL) ((DECL)->decl_common.lang_flag_0)
 #define METHOD_DEFINITION(DECL) ((DECL)->decl_common.initial)
 #define METHOD_ENCODING(DECL) ((DECL)->decl_minimal.context)
+#define METHOD_TYPE_ATTRIBUTES(DECL) (DECL_COMMON_CHECK (DECL)->decl_common.abstract_origin)
 
 #define METHOD_PROPERTY_CONTEXT(DECL) (DECL_COMMON_CHECK (DECL)->decl_common.size_unit)
 
@@ -98,6 +99,23 @@ enum gimplify_status objc_gimplify_expr (tree *, tree *, tree *);
 #define PROTOCOL_CLS_METHODS(CLASS) ((CLASS)->type.maxval)
 #define PROTOCOL_FORWARD_DECL(CLASS) TREE_VEC_ELT (TYPE_LANG_SLOT_1 (CLASS), 1)
 #define PROTOCOL_DEFINED(CLASS) TREE_USED (CLASS)
+
+/* APPLE LOCAL begin C* language */
+#define PROTOCOL_OPTIONAL_CLS_METHODS(CLASS) TREE_VEC_ELT (TYPE_LANG_SLOT_1 (CLASS), 3)
+#define PROTOCOL_OPTIONAL_NST_METHODS(CLASS) TREE_VEC_ELT (TYPE_LANG_SLOT_1 (CLASS), 4)
+/* APPLE LOCAL end C* language */
+/* APPLE LOCAL begin C* property (Radar 4436866) */
+/* For CATEGORY_INTERFACE_TYPE, CLASS_INTERFACE_TYPE or PROTOCOL_INTERFACE_TYPE */
+#define CLASS_PROPERTY_DECL(CLASS) TREE_VEC_ELT (TYPE_LANG_SLOT_1 (CLASS), 7)
+/* For CLASS_IMPLEMENTATION_TYPE or CATEGORY_IMPLEMENTATION_TYPE. */
+#define IMPL_PROPERTY_DECL(CLASS) TREE_VEC_ELT (TYPE_LANG_SLOT_1 (CLASS), 7)
+/* APPLE LOCAL end C* property (Radar 4436866) */
+/* APPLE LOCAL begin radar 4548636 */
+/* For CLASS_INTERFACE_TYPE only */
+#define CLASS_ATTRIBUTES(CLASS) TREE_VEC_ELT (TYPE_LANG_SLOT_1 (CLASS), 8)
+/* APPLE LOCAL end radar 4548636 */
+/* APPLE LOCAL radar 4695101 */
+/* declaration of  PROTOCOL_IMPL_OBJ removed. */
 
 /* ObjC-specific information pertaining to RECORD_TYPEs are stored in
    the LANG_SPECIFIC structures, which may itself need allocating first.  */
