@@ -396,15 +396,20 @@ int cat_count = 0;	/* `@category' */
 
 enum tree_code objc_inherit_code;
 int objc_public_flag;
-int objc_method_optional_flag;
-
+/* APPLE LOCAL C* language */
+static int objc_method_optional_flag = 0;
+/* APPLE LOCAL begin C* property (Radar 4436866, 4591909) */
 static bool property_readonly;
 static tree property_getter;
 static tree property_setter;
+/* APPLE LOCAL end C* property (Radar 4436866, 4591909) */
+/* APPLE LOCAL begin objc new property */
 static bool property_readwrite;
 static bool property_assign;
 static bool property_retain;
 static bool property_copy;
+/* APPLE LOCAL end objc new property */
+/* APPLE LOCAL radar 4947014 - objc atomic property */
 static bool property_atomic;
 
 
@@ -1273,9 +1278,10 @@ objc_build_property_reference_expr (tree receiver, tree component)
 		return res;
 	
 	prop_type = NULL_TREE;
-	/* APPLE LOCAL begin objc2 5512183 */
-	if (interface_type && !receiver_is_class)
-	/* APPLE LOCAL end objc2 5512183 */
+  if (prop)
+    /* APPLE LOCAL radar 5390587 */
+    prop_type = TREE_TYPE (prop);
+  else if (interface_type && !receiver_is_class)
     {
 		/* type of the expression is either the property type or, if no property declared,
 		 then ivar type used in receiver.ivar expression. */
@@ -1529,196 +1535,6 @@ objc_build_setter_call (tree lhs, tree rhs)
 												TREE_OPERAND (lhs, 1), rhs);
 	return NULL_TREE;
 }
-
-static void
-declare_atomic_property_api (void)
-{
-  tree func_type;
-
-  umsg_GetAtomicProperty = lookup_name (get_identifier ("objc_getProperty"));
-  umsg_SetAtomicProperty = lookup_name (get_identifier ("objc_setProperty"));
-  umsg_CopyAtomicStruct = lookup_name (get_identifier ("objc_copyStruct"));
-  if (umsg_GetAtomicProperty && umsg_SetAtomicProperty && umsg_CopyAtomicStruct)
-    return;
-
-  if (!umsg_GetAtomicProperty)
-    {
-      /* id objc_getProperty (id, SEL, ptrdiff_t, bool) */
-      func_type
-        = build_function_type (objc_object_type,
-		           tree_cons (NULL_TREE, objc_object_type,
-	              	     tree_cons (NULL_TREE, objc_selector_type,
-			       tree_cons (NULL_TREE, long_integer_type_node, 
-			    	 tree_cons (NULL_TREE, boolean_type_node, NULL_TREE)))));
-      umsg_GetAtomicProperty = add_builtin_function (
-			        "objc_getProperty",
-			        func_type, 0, NOT_BUILT_IN, 0, NULL_TREE);
-      TREE_NOTHROW (umsg_GetAtomicProperty) = 0;
-    }
-
-  if (!umsg_SetAtomicProperty)
-    {
-      /* void objc_setProperty (id, SEL, ptrdiff_t, id, bool, bool) */
-      func_type
-        = build_function_type (void_type_node,
-		           tree_cons (NULL_TREE, objc_object_type,
-			     tree_cons (NULL_TREE, objc_selector_type,
-			       tree_cons (NULL_TREE, long_integer_type_node, 
-			         tree_cons (NULL_TREE, objc_object_type, 
-				   tree_cons (NULL_TREE, boolean_type_node, 
-				     tree_cons (NULL_TREE, boolean_type_node, NULL_TREE)))))));
-      umsg_SetAtomicProperty = add_builtin_function (
-			        "objc_setProperty",
-			        func_type, 0, NOT_BUILT_IN, 0, NULL_TREE);
-      TREE_NOTHROW (umsg_SetAtomicProperty) = 0;
-    }
-
-  if (!umsg_CopyAtomicStruct)
-    {
-      /* void objc_copyStruct (void *, const void *, size_t, bool, bool) */
-      func_type
-        = build_function_type (void_type_node,
-		           tree_cons (NULL_TREE, ptr_type_node,
-			     tree_cons (NULL_TREE, ptr_type_node,
-			       tree_cons (NULL_TREE, long_unsigned_type_node, 
-				   tree_cons (NULL_TREE, boolean_type_node, 
-				     tree_cons (NULL_TREE, boolean_type_node, NULL_TREE))))));
-      umsg_CopyAtomicStruct = add_builtin_function (
-			        "objc_copyStruct",
-			        func_type, 0, NOT_BUILT_IN, 0, NULL_TREE);
-      TREE_NOTHROW (umsg_CopyAtomicStruct) = 0;
-    }
-  return; 
-}
-
-
-static void
-objc_synthesize_new_setter (tree class, tree class_method, tree property)
-{
-	tree fn, decl, stmt;
-	tree body, lhs;
-	/* APPLE LOCAL begin radar 5207415 */
-	tree setter_ident;
-	
-	if (PROPERTY_SETTER_NAME (property))
-		setter_ident = PROPERTY_SETTER_NAME (property);
-	else
-		setter_ident = get_identifier (objc_build_property_setter_name (PROPERTY_NAME (property), true));
-	/* APPLE LOCAL end radar 5207415 */ 
-	
-	/* If user has implemented a setter with same name then do nothing. */
-	if (lookup_method (CLASS_NST_METHODS (
-										  objc_implementation_context),setter_ident))
-		return;
-	
-	objc_lookup_property_ivar (class, property);
-	
-	/* Find declaration of the property in the interface. There must be one. */
-	/* APPLE LOCAL radar 5040740 */
-	decl = lookup_nested_method (class_method, setter_ident);
-	/* If not declared in the inerface, this condition has already been reported
-     as user error (because property was not declared in the interface. */
-	if (!decl)
-		return;
-	
-	/* APPLE LOCAL begin radar 4947014 - objc atomic property */
-	if (!umsg_SetAtomicProperty || !umsg_CopyAtomicStruct)
-		declare_atomic_property_api ();
-	objc_inherit_code = INSTANCE_METHOD_DECL;
-	objc_start_method_definition (copy_node (decl), NULL_TREE);
-	body = c_begin_compound_stmt (true);
-	/* property_name = _value; */
-	stmt = NULL_TREE;
-	if (PROPERTY_COPY (property) == boolean_true_node
-		|| (PROPERTY_RETAIN (property) == boolean_true_node))
-    {
-		/* build call to:
-		 objc_setProperty (self, _cmd, offsetof (class, ivar), arg, [true|false], [true|false]) */
-		tree cmd, arg;
-		/* APPLE LOCAL begin radar 5610134 */
-		tree func_params, func;
-		tree field_decl = nested_ivar_lookup (class, PROPERTY_IVAR_NAME (property));
-		tree offset = byte_position (field_decl);
-		/* APPLE LOCAL end radar 5610134 */
-		tree shouldCopy = (PROPERTY_COPY (property) == boolean_true_node) 
-		? boolean_true_node : boolean_false_node; 
-		tree isAtomic = IS_ATOMIC (property) ? boolean_true_node : boolean_false_node;
-		gcc_assert (self_decl);
-		cmd = TREE_CHAIN (self_decl);
-		gcc_assert (cmd);
-		arg = TREE_CHAIN (cmd);
-		gcc_assert (arg);
-		/* APPLE LOCAL radar 5398274 */
-		TREE_USED (arg) = 1;
-		func_params = tree_cons (NULL_TREE, self_decl,
-								 tree_cons (NULL_TREE, cmd,
-											tree_cons (NULL_TREE, offset,
-													   tree_cons (NULL_TREE, arg,
-																  tree_cons (NULL_TREE, isAtomic,
-																			 tree_cons (NULL_TREE, shouldCopy, NULL_TREE))))));
-		func = umsg_SetAtomicProperty;
-		stmt =  build_function_call (func, func_params);
-    }
-	else
-    {
-		tree ivar_type;
-		tree rhs = lookup_name (get_identifier ("_value"));
-		/* APPLE LOCAL begin radar 5376125 */
-		int save_warn_direct_ivar_access = warn_direct_ivar_access;
-		warn_direct_ivar_access = 0;
-		lhs = build_ivar_reference (PROPERTY_IVAR_NAME (property));
-		warn_direct_ivar_access = save_warn_direct_ivar_access;
-		/* APPLE LOCAL end radar 5376125 */
-		/* Recover when method does not have '_value' argument. This is because user
-         provided its own accessor and for which an error is already issued. */
-		if (!rhs)
-			rhs = lhs;
-		/* APPLE LOCAL begin radar 5232840 */
-		else
-			TREE_USED (rhs) = 1;
-		/* APPLE LOCAL end radar 5232840 */
-		ivar_type = TREE_TYPE (lhs);
-		if ((TREE_CODE (ivar_type) == RECORD_TYPE || TREE_CODE (ivar_type) == UNION_TYPE)
-			/* APPLE LOCAL begin radar 5080710 */
-			&& IS_ATOMIC (property)
-			&& (TREE_ADDRESSABLE (ivar_type) || targetm.calls.return_in_memory  (ivar_type, 0)))
-		/* APPLE LOCAL end radar 5080710 */
-        {
-			/* objc_copyStruct (&structIvar, &value, sizeof (struct something), true, false); */
-			tree func_params;
-			tree isAtomic = boolean_true_node;
-			tree hasStrong = boolean_false_node;
-			tree addr_structIvar = build_fold_addr_expr (lhs);
-			tree size_struct = build_int_cst_wide (NULL_TREE,
-												   TREE_INT_CST_LOW (TYPE_SIZE_UNIT (ivar_type)),
-												   TREE_INT_CST_HIGH (TYPE_SIZE_UNIT (ivar_type)));
-			rhs = build_fold_addr_expr (rhs);
-			func_params = tree_cons (NULL_TREE, addr_structIvar,
-									 tree_cons (NULL_TREE, rhs,
-												tree_cons (NULL_TREE, size_struct,
-														   tree_cons (NULL_TREE, isAtomic,
-																	  tree_cons (NULL_TREE, hasStrong, NULL_TREE)))));
-			stmt = build_function_call (umsg_CopyAtomicStruct, func_params);  
-		}
-		else
-    	{
-			/* Common case */
-			/* APPLE LOCAL 5675908 */
-			stmt =  build_modify_expr (lhs, NOP_EXPR, rhs);
-		}
-    }
-	/* APPLE LOCAL end radar 4947014 - objc atomic property */
-	
-	if (stmt)
-		add_stmt (stmt);
-	add_stmt (c_end_compound_stmt (body, true));
-	fn = current_function_decl;
-#ifdef OBJCPLUS
-	finish_function ();
-#endif
-	objc_finish_method_definition (fn);
-}
-
 static void
 objc_v2_merge_property (void)
 {
@@ -2544,6 +2360,68 @@ start_var_decl (tree type, const char *name)
 
   return var;
 }
+
+static void
+declare_atomic_property_api (void)
+{
+  tree func_type;
+
+  umsg_GetAtomicProperty = lookup_name (get_identifier ("objc_getProperty"));
+  umsg_SetAtomicProperty = lookup_name (get_identifier ("objc_setProperty"));
+  umsg_CopyAtomicStruct = lookup_name (get_identifier ("objc_copyStruct"));
+  if (umsg_GetAtomicProperty && umsg_SetAtomicProperty && umsg_CopyAtomicStruct)
+    return;
+
+  if (!umsg_GetAtomicProperty)
+    {
+      /* id objc_getProperty (id, SEL, ptrdiff_t, bool) */
+      func_type
+        = build_function_type (objc_object_type,
+		           tree_cons (NULL_TREE, objc_object_type,
+	              	     tree_cons (NULL_TREE, objc_selector_type,
+			       tree_cons (NULL_TREE, long_integer_type_node, 
+			    	 tree_cons (NULL_TREE, boolean_type_node, NULL_TREE)))));
+      umsg_GetAtomicProperty = add_builtin_function (
+			        "objc_getProperty",
+			        func_type, 0, NOT_BUILT_IN, 0, NULL_TREE);
+      TREE_NOTHROW (umsg_GetAtomicProperty) = 0;
+    }
+
+  if (!umsg_SetAtomicProperty)
+    {
+      /* void objc_setProperty (id, SEL, ptrdiff_t, id, bool, bool) */
+      func_type
+        = build_function_type (void_type_node,
+		           tree_cons (NULL_TREE, objc_object_type,
+			     tree_cons (NULL_TREE, objc_selector_type,
+			       tree_cons (NULL_TREE, long_integer_type_node, 
+			         tree_cons (NULL_TREE, objc_object_type, 
+				   tree_cons (NULL_TREE, boolean_type_node, 
+				     tree_cons (NULL_TREE, boolean_type_node, NULL_TREE)))))));
+      umsg_SetAtomicProperty = add_builtin_function (
+			        "objc_setProperty",
+			        func_type, 0, NOT_BUILT_IN, 0, NULL_TREE);
+      TREE_NOTHROW (umsg_SetAtomicProperty) = 0;
+    }
+
+  if (!umsg_CopyAtomicStruct)
+    {
+      /* void objc_copyStruct (void *, const void *, size_t, bool, bool) */
+      func_type
+        = build_function_type (void_type_node,
+		           tree_cons (NULL_TREE, ptr_type_node,
+			     tree_cons (NULL_TREE, ptr_type_node,
+			       tree_cons (NULL_TREE, long_unsigned_type_node, 
+				   tree_cons (NULL_TREE, boolean_type_node, 
+				     tree_cons (NULL_TREE, boolean_type_node, NULL_TREE))))));
+      umsg_CopyAtomicStruct = add_builtin_function (
+			        "objc_copyStruct",
+			        func_type, 0, NOT_BUILT_IN, 0, NULL_TREE);
+      TREE_NOTHROW (umsg_CopyAtomicStruct) = 0;
+    }
+  return; 
+}
+
 
 /* Finish off the variable declaration created by start_var_decl().  */
 
@@ -7138,7 +7016,8 @@ objc_build_message_expr (tree mess)
 #endif
   tree method_params = NULL_TREE;
 
-  if (TREE_CODE (receiver) == ERROR_MARK)
+  /* APPLE LOCAL radar 4294425 */
+  if (TREE_CODE (receiver) == ERROR_MARK || TREE_CODE (args) == ERROR_MARK)
     return error_mark_node;
 
   /* Obtain the full selector name.  */
@@ -8000,43 +7879,6 @@ add_category (tree class, tree category)
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* This routine looks up the PROPERTY in the INTERFACE_TYPE class or one of its
  super classes. */
 static tree
@@ -8052,6 +7894,125 @@ lookup_nested_property (tree interface_type, tree property)
 		inter = lookup_interface (CLASS_SUPER_NAME (inter));
     }
 	return NULL_TREE;
+}
+
+/* This routine looks up METHOD_NAME in the INTERFACE_TYPE class or one of its
+ super class. */
+static tree
+lookup_nested_method (tree interface_type, tree method_name)
+{
+	tree inter = interface_type;
+	while (inter)
+    {
+		tree x;
+		if ((x = lookup_method (CLASS_NST_METHODS (inter), method_name)))
+			return x;
+		/* Failing that, climb up the inheritance hierarchy.  */
+		inter = lookup_interface (CLASS_SUPER_NAME (inter));
+    }
+	return NULL_TREE;
+}
+
+/* This routine declares a new property implementation. Triggered by a @synthesize or
+ @dynamic declaration. */
+void objc_declare_property_impl (int impl_code, tree tree_list)
+{
+	tree chain, interface, class;
+	if (tree_list == error_mark_node 
+		|| TREE_PURPOSE (tree_list) == error_mark_node
+		|| TREE_VALUE (tree_list) == error_mark_node)
+		return;
+	/* Find the @interface for this @implementation. */
+	/* APPLE LOCAL begin radar 5265608 */
+	if (objc_implementation_context == NULL_TREE)
+    {
+		error ("@%s property must be in implementation context",
+			   impl_code == 1 ? "synthesize" : "dynamic");
+		return;
+    }
+	/* APPLE LOCAL end radar 5265608 */
+	interface = lookup_interface (CLASS_NAME (objc_implementation_context));
+	if (!interface)
+    {
+		error ("%s property may not be specified in implementation without an interface", 
+			   impl_code == 1 ? "synthesize" : "dynamic");
+		return;
+    }
+	class = interface;
+	if (TREE_CODE (objc_implementation_context) == CATEGORY_IMPLEMENTATION_TYPE)
+    {
+		/* APPLE LOCAL begin radar 5180172 */
+		if (impl_code == 1) /* @synthesize */
+			error ("@synthesize not allowed in a category's implementation");
+		interface = lookup_category (interface,
+									 CLASS_SUPER_NAME (objc_implementation_context));
+		if (!interface && (impl_code == 2)) /* @dynamic */
+        {
+			error ("@dynamic may not be specified in category without an interface");
+			return;
+        }
+		/* APPLE LOCAL end radar 5180172 */
+    }
+	
+	if (impl_code == 1 || impl_code == 2)
+    {
+		for (chain = tree_list; chain; chain = TREE_CHAIN (chain))
+		{
+			tree property_name = TREE_VALUE (chain);
+			tree x;
+			if (!property_name)
+				continue;
+			/* APPLE LOCAL begin radar 5040740 */
+			/* Look up this property in the @interface declaration or in its superclass(s). */
+			x = lookup_nested_property (interface, property_name);
+			/* APPLE LOCAL end radar 5040740 */
+			if (!x)
+				error ("no declaration of property %qs found in the interface",
+					   IDENTIFIER_POINTER (property_name));
+			else
+			{
+				tree property_decl = copy_node (x);
+				
+				if (impl_code == 2)  /* @dynamic ... */
+					PROPERTY_DYNAMIC (property_decl) = boolean_true_node;
+				else
+				{
+					/* @synthesize ... */
+					tree ivar_decl;
+					tree ivar_name = TREE_PURPOSE (chain);
+					/* If 'ivar' unspecified, then an instance variable with same name as 
+					 property name must be used. */
+					if (!ivar_name)
+						ivar_name = property_name;
+					ivar_decl = nested_ivar_lookup (class, ivar_name);
+					if (ivar_decl)
+					{
+						/* APPLE LOCAL begin radar 5389292 */
+						/* Check for semnatic correctness of the existing ivar. */
+						tree ivar_type = DECL_BIT_FIELD_TYPE (ivar_decl) 
+						? DECL_BIT_FIELD_TYPE (ivar_decl) 
+						: TREE_TYPE (ivar_decl);
+						if (comptypes (ivar_type, TREE_TYPE (property_decl)) != 1
+							&& !objc_compare_types (TREE_TYPE (property_decl), ivar_type, -5, NULL_TREE))
+						/* APPLE LOCAL end radar 5389292 */
+						{
+							error ("type of property %qs does not match type of ivar %qs", 
+								   IDENTIFIER_POINTER (property_name), IDENTIFIER_POINTER (ivar_name));
+							PROPERTY_DYNAMIC (property_decl) = boolean_true_node; /* recover */
+						}
+						
+					}
+					
+					PROPERTY_IVAR_NAME (property_decl) = ivar_name;
+				}
+				/* Add the property to the list of properties for current implementation. */
+				TREE_CHAIN (property_decl) = IMPL_PROPERTY_DECL (objc_implementation_context);
+				IMPL_PROPERTY_DECL (objc_implementation_context) = property_decl;
+			}
+		}
+    }
+	else
+		gcc_assert (false);
 }
 
 #ifndef OBJCPLUS
@@ -8292,239 +8253,6 @@ match_proto_with_proto (tree proto1, tree proto2, int strict)
 	return (!type1 && !type2);
 }
 
-/* This routine looks up METHOD_NAME in the INTERFACE_TYPE class or one of its
- super class. */
-static tree
-lookup_nested_method (tree interface_type, tree method_name)
-{
-	tree inter = interface_type;
-	while (inter)
-    {
-		tree x;
-		if ((x = lookup_method (CLASS_NST_METHODS (inter), method_name)))
-			return x;
-		/* Failing that, climb up the inheritance hierarchy.  */
-		inter = lookup_interface (CLASS_SUPER_NAME (inter));
-    }
-	return NULL_TREE;
-}
-
-/* This routine synthesizes a 'getter' routine for new property. */
-static void
-objc_synthesize_new_getter (tree class, tree class_method, tree property)
-{
-	tree decl,body,ret_val,fn;
-	/* APPLE LOCAL begin radar 5207415 */
-	tree property_getter = PROPERTY_GETTER_NAME (property) 
-	? PROPERTY_GETTER_NAME (property) 
-	: PROPERTY_NAME (property);
-	/* APPLE LOCAL end radar 5207415 */
-	/* If user has implemented a getter with same name then do nothing. */
-	if (lookup_method (CLASS_NST_METHODS (
-										  /* APPLE LOCAL radar 5207415 */
-										  objc_implementation_context),property_getter))
-		return;
-	
-	objc_lookup_property_ivar (class, property);
-	
-	/* Find declaration of the property in the interface. There must be one. */
-	/* APPLE LOCAL radar 5040740 - radar 5207415 */
-	decl = lookup_nested_method (class_method, property_getter);
-	/* If one not declared in the inerface, this condition has already been reported
-     as user error (because property was not declared in the interface. */
-	if (!decl)
-		return;  
-	
-	/* APPLE LOCAL begin radar 4947014 - objc atomic property */
-	if (!umsg_GetAtomicProperty || !umsg_CopyAtomicStruct)
-		declare_atomic_property_api ();
-	objc_inherit_code = INSTANCE_METHOD_DECL;
-	objc_start_method_definition (copy_node (decl), NULL_TREE);
-	body = c_begin_compound_stmt (true);
-	if (IS_ATOMIC (property)
-		&& (PROPERTY_COPY (property) == boolean_true_node
-			|| PROPERTY_RETAIN (property) == boolean_true_node))
-    {
-		/* build call to:
-		 id objc_getProperty (self, _cmd, offsetof (class, ivar), isAtomic) */
-		tree cmd;
-		/* APPLE LOCAL begin radar 5610134 */
-		tree func_params, func;
-		tree field_decl = nested_ivar_lookup (class, PROPERTY_IVAR_NAME (property));
-		tree offset = byte_position;
-		/* APPLE LOCAL end radar 5610134 */
-		gcc_assert (self_decl);
-		cmd = TREE_CHAIN (self_decl);
-		gcc_assert (cmd);
-		func_params = tree_cons (NULL_TREE, self_decl,
-								 tree_cons (NULL_TREE, cmd,
-											tree_cons (NULL_TREE, offset, 
-													   tree_cons (NULL_TREE, boolean_true_node, NULL_TREE))));
-		func = umsg_GetAtomicProperty;
-		ret_val = build_function_call (func, func_params);
-    }
-    else
-	{
-		bool isStrong = false;
-        tree ret_type = TREE_TYPE (TREE_TYPE (current_function_decl));
-        /* return self->ivar_name; */
-        /* APPLE LOCAL begin radar 5376125 */
-        int save_warn_direct_ivar_access = warn_direct_ivar_access;
-        warn_direct_ivar_access = 0;
-        ret_val = build_ivar_reference (PROPERTY_IVAR_NAME (property));
-        warn_direct_ivar_access = save_warn_direct_ivar_access;
-        /* APPLE LOCAL end radar 5376125 */
-		
-		/* Handle struct-valued functions */
-		if ((TREE_CODE (ret_type) == RECORD_TYPE || TREE_CODE (ret_type) == UNION_TYPE)
-            /* APPLE LOCAL radar 5080710 */
-            && (TREE_ADDRESSABLE (ret_type) || targetm.calls.return_in_memory  (ret_type, 0))
-			&& (IS_ATOMIC (property)))
-		{
-			/* struct something tmp; 
-			 objc_copyStruct (&tmp, &structIvar, sizeof (struct something), isAtomic, false);
-			 return tmp;
-			 */
-			tree decl = create_tmp_var_raw (ret_type, NULL);
-			tree isAtomic = (IS_ATOMIC (property) ? boolean_true_node : boolean_false_node);
-			tree hasStrong = (isStrong ? boolean_true_node : boolean_false_node);
-			tree size_ret_val = build_int_cst_wide (NULL_TREE,
-                                                    TREE_INT_CST_LOW (TYPE_SIZE_UNIT (ret_type)),
-													TREE_INT_CST_HIGH (TYPE_SIZE_UNIT (ret_type)));
-			tree func_params, stmt, tmp;
-			lang_hooks.decls.pushdecl (decl);
-			tmp = build_fold_addr_expr (decl);
-			ret_val = build_fold_addr_expr (ret_val);
-			func_params = tree_cons (NULL_TREE, tmp,
-									 tree_cons (NULL_TREE, ret_val,
-												tree_cons (NULL_TREE, size_ret_val,
-														   tree_cons (NULL_TREE, isAtomic,
-																	  tree_cons (NULL_TREE, hasStrong, NULL_TREE)))));
-			stmt = build_function_call (umsg_CopyAtomicStruct, func_params);
-			add_stmt (stmt); 
-			ret_val = decl;
-		}
-	}
-	/* APPLE LOCAL end radar 4947014 - objc atomic property */
-	
-	if (ret_val)
-    {
-		/* APPLE LOCAL radar 5276085 */
-#ifdef OBJCPLUS
-		finish_return_stmt (ret_val);
-#else
-		(void)c_finish_return (ret_val);
-#endif
-    }
-	add_stmt (c_end_compound_stmt (body, true));
-	fn = current_function_decl;
-#ifdef OBJCPLUS
-	finish_function ();
-#endif
-	objc_finish_method_definition (fn);
-}
-
-/* This routine declares a new property implementation. Triggered by a @synthesize or
- @dynamic declaration. */
-void objc_declare_property_impl (int impl_code, tree tree_list)
-{
-	tree chain, interface, class;
-	if (tree_list == error_mark_node 
-		|| TREE_PURPOSE (tree_list) == error_mark_node
-		|| TREE_VALUE (tree_list) == error_mark_node)
-		return;
-	/* Find the @interface for this @implementation. */
-	/* APPLE LOCAL begin radar 5265608 */
-	if (objc_implementation_context == NULL_TREE)
-    {
-		error ("@%s property must be in implementation context",
-			   impl_code == 1 ? "synthesize" : "dynamic");
-		return;
-    }
-	/* APPLE LOCAL end radar 5265608 */
-	interface = lookup_interface (CLASS_NAME (objc_implementation_context));
-	if (!interface)
-    {
-		error ("%s property may not be specified in implementation without an interface", 
-			   impl_code == 1 ? "synthesize" : "dynamic");
-		return;
-    }
-	class = interface;
-	if (TREE_CODE (objc_implementation_context) == CATEGORY_IMPLEMENTATION_TYPE)
-    {
-		/* APPLE LOCAL begin radar 5180172 */
-		if (impl_code == 1) /* @synthesize */
-			error ("@synthesize not allowed in a category's implementation");
-		interface = lookup_category (interface,
-									 CLASS_SUPER_NAME (objc_implementation_context));
-		if (!interface && (impl_code == 2)) /* @dynamic */
-        {
-			error ("@dynamic may not be specified in category without an interface");
-			return;
-        }
-		/* APPLE LOCAL end radar 5180172 */
-    }
-	
-	if (impl_code == 1 || impl_code == 2)
-    {
-		for (chain = tree_list; chain; chain = TREE_CHAIN (chain))
-		{
-			tree property_name = TREE_VALUE (chain);
-			tree x;
-			if (!property_name)
-				continue;
-			/* APPLE LOCAL begin radar 5040740 */
-			/* Look up this property in the @interface declaration or in its superclass(s). */
-			x = lookup_nested_property (interface, property_name);
-			/* APPLE LOCAL end radar 5040740 */
-			if (!x)
-				error ("no declaration of property %qs found in the interface",
-					   IDENTIFIER_POINTER (property_name));
-			else
-			{
-				tree property_decl = copy_node (x);
-				
-				if (impl_code == 2)  /* @dynamic ... */
-					PROPERTY_DYNAMIC (property_decl) = boolean_true_node;
-				else
-				{
-					/* @synthesize ... */
-					tree ivar_decl;
-					tree ivar_name = TREE_PURPOSE (chain);
-					/* If 'ivar' unspecified, then an instance variable with same name as 
-					 property name must be used. */
-					if (!ivar_name)
-						ivar_name = property_name;
-					ivar_decl = nested_ivar_lookup (class, ivar_name);
-					if (ivar_decl)
-					{
-						/* APPLE LOCAL begin radar 5389292 */
-						/* Check for semnatic correctness of the existing ivar. */
-						tree ivar_type = DECL_BIT_FIELD_TYPE (ivar_decl) 
-						? DECL_BIT_FIELD_TYPE (ivar_decl) 
-						: TREE_TYPE (ivar_decl);
-						if (comptypes (ivar_type, TREE_TYPE (property_decl)) != 1
-							&& !objc_compare_types (TREE_TYPE (property_decl), ivar_type, -5, NULL_TREE))
-						/* APPLE LOCAL end radar 5389292 */
-						{
-							error ("type of property %qs does not match type of ivar %qs", 
-								   IDENTIFIER_POINTER (property_name), IDENTIFIER_POINTER (ivar_name));
-							PROPERTY_DYNAMIC (property_decl) = boolean_true_node; /* recover */
-						}
-						
-					}
-					
-					PROPERTY_IVAR_NAME (property_decl) = ivar_name;
-				}
-				/* Add the property to the list of properties for current implementation. */
-				TREE_CHAIN (property_decl) = IMPL_PROPERTY_DECL (objc_implementation_context);
-				IMPL_PROPERTY_DECL (objc_implementation_context) = property_decl;
-			}
-		}
-    }
-	else
-		gcc_assert (false);
-}
 
 /* Called after parsing each instance variable declaration. Necessary to
    preserve typedefs and implement public/private...
@@ -9595,6 +9323,249 @@ objc_synthesize_setter (tree class, tree class_method, tree property)
 	? PROPERTY_IVAR_NAME (property) 
 	: get_identifier (objc_build_property_ivar_name (property));
 	stmt = objc_build_setter_stmt (ivar_ident);
+	if (stmt)
+		add_stmt (stmt);
+	add_stmt (c_end_compound_stmt (body, true));
+	fn = current_function_decl;
+#ifdef OBJCPLUS
+	finish_function ();
+#endif
+	objc_finish_method_definition (fn);
+}
+
+/* This routine synthesizes a 'getter' routine for new property. */
+static void
+objc_synthesize_new_getter (tree class, tree class_method, tree property)
+{
+	tree decl,body,ret_val,fn;
+	/* APPLE LOCAL begin radar 5207415 */
+	tree property_getter = PROPERTY_GETTER_NAME (property) 
+	? PROPERTY_GETTER_NAME (property) 
+	: PROPERTY_NAME (property);
+	/* APPLE LOCAL end radar 5207415 */
+	/* If user has implemented a getter with same name then do nothing. */
+	if (lookup_method (CLASS_NST_METHODS (
+										  /* APPLE LOCAL radar 5207415 */
+										  objc_implementation_context),property_getter))
+		return;
+	
+	objc_lookup_property_ivar (class, property);
+	
+	/* Find declaration of the property in the interface. There must be one. */
+	/* APPLE LOCAL radar 5040740 - radar 5207415 */
+	decl = lookup_nested_method (class_method, property_getter);
+	/* If one not declared in the inerface, this condition has already been reported
+     as user error (because property was not declared in the interface. */
+	if (!decl)
+		return;  
+	
+	/* APPLE LOCAL begin radar 4947014 - objc atomic property */
+	if (!umsg_GetAtomicProperty || !umsg_CopyAtomicStruct)
+		declare_atomic_property_api ();
+	objc_inherit_code = INSTANCE_METHOD_DECL;
+	objc_start_method_definition (copy_node (decl), NULL_TREE);
+	body = c_begin_compound_stmt (true);
+	if (IS_ATOMIC (property)
+		&& (PROPERTY_COPY (property) == boolean_true_node
+			|| PROPERTY_RETAIN (property) == boolean_true_node))
+    {
+		/* build call to:
+		 id objc_getProperty (self, _cmd, offsetof (class, ivar), isAtomic) */
+		tree cmd;
+		/* APPLE LOCAL begin radar 5610134 */
+		tree func_params, func;
+		tree field_decl = nested_ivar_lookup (class, PROPERTY_IVAR_NAME (property));
+		tree offset = byte_position;
+		/* APPLE LOCAL end radar 5610134 */
+		gcc_assert (self_decl);
+		cmd = TREE_CHAIN (self_decl);
+		gcc_assert (cmd);
+		func_params = tree_cons (NULL_TREE, self_decl,
+								 tree_cons (NULL_TREE, cmd,
+											tree_cons (NULL_TREE, offset, 
+													   tree_cons (NULL_TREE, boolean_true_node, NULL_TREE))));
+		func = umsg_GetAtomicProperty;
+		ret_val = build_function_call (func, func_params);
+    }
+    else
+	{
+		bool isStrong = false;
+        tree ret_type = TREE_TYPE (TREE_TYPE (current_function_decl));
+        /* return self->ivar_name; */
+        /* APPLE LOCAL begin radar 5376125 */
+        int save_warn_direct_ivar_access = warn_direct_ivar_access;
+        warn_direct_ivar_access = 0;
+        ret_val = build_ivar_reference (PROPERTY_IVAR_NAME (property));
+        warn_direct_ivar_access = save_warn_direct_ivar_access;
+        /* APPLE LOCAL end radar 5376125 */
+		
+		/* Handle struct-valued functions */
+		if ((TREE_CODE (ret_type) == RECORD_TYPE || TREE_CODE (ret_type) == UNION_TYPE)
+            /* APPLE LOCAL radar 5080710 */
+            && (TREE_ADDRESSABLE (ret_type) || targetm.calls.return_in_memory  (ret_type, 0))
+			&& (IS_ATOMIC (property)))
+		{
+			/* struct something tmp; 
+			 objc_copyStruct (&tmp, &structIvar, sizeof (struct something), isAtomic, false);
+			 return tmp;
+			 */
+			tree decl = create_tmp_var_raw (ret_type, NULL);
+			tree isAtomic = (IS_ATOMIC (property) ? boolean_true_node : boolean_false_node);
+			tree hasStrong = (isStrong ? boolean_true_node : boolean_false_node);
+			tree size_ret_val = build_int_cst_wide (NULL_TREE,
+                                                    TREE_INT_CST_LOW (TYPE_SIZE_UNIT (ret_type)),
+													TREE_INT_CST_HIGH (TYPE_SIZE_UNIT (ret_type)));
+			tree func_params, stmt, tmp;
+			lang_hooks.decls.pushdecl (decl);
+			tmp = build_fold_addr_expr (decl);
+			ret_val = build_fold_addr_expr (ret_val);
+			func_params = tree_cons (NULL_TREE, tmp,
+									 tree_cons (NULL_TREE, ret_val,
+												tree_cons (NULL_TREE, size_ret_val,
+														   tree_cons (NULL_TREE, isAtomic,
+																	  tree_cons (NULL_TREE, hasStrong, NULL_TREE)))));
+			stmt = build_function_call (umsg_CopyAtomicStruct, func_params);
+			add_stmt (stmt); 
+			ret_val = decl;
+		}
+	}
+	/* APPLE LOCAL end radar 4947014 - objc atomic property */
+	
+	if (ret_val)
+    {
+		/* APPLE LOCAL radar 5276085 */
+#ifdef OBJCPLUS
+		finish_return_stmt (ret_val);
+#else
+		(void)c_finish_return (ret_val);
+#endif
+    }
+	add_stmt (c_end_compound_stmt (body, true));
+	fn = current_function_decl;
+#ifdef OBJCPLUS
+	finish_function ();
+#endif
+	objc_finish_method_definition (fn);
+}
+
+
+static void
+objc_synthesize_new_setter (tree class, tree class_method, tree property)
+{
+	tree fn, decl, stmt;
+	tree body, lhs;
+	/* APPLE LOCAL begin radar 5207415 */
+	tree setter_ident;
+	
+	if (PROPERTY_SETTER_NAME (property))
+		setter_ident = PROPERTY_SETTER_NAME (property);
+	else
+		setter_ident = get_identifier (objc_build_property_setter_name (PROPERTY_NAME (property), true));
+	/* APPLE LOCAL end radar 5207415 */ 
+	
+	/* If user has implemented a setter with same name then do nothing. */
+	if (lookup_method (CLASS_NST_METHODS (
+										  objc_implementation_context),setter_ident))
+		return;
+	
+	objc_lookup_property_ivar (class, property);
+	
+	/* Find declaration of the property in the interface. There must be one. */
+	/* APPLE LOCAL radar 5040740 */
+	decl = lookup_nested_method (class_method, setter_ident);
+	/* If not declared in the inerface, this condition has already been reported
+     as user error (because property was not declared in the interface. */
+	if (!decl)
+		return;
+	
+	/* APPLE LOCAL begin radar 4947014 - objc atomic property */
+	if (!umsg_SetAtomicProperty || !umsg_CopyAtomicStruct)
+		declare_atomic_property_api ();
+	objc_inherit_code = INSTANCE_METHOD_DECL;
+	objc_start_method_definition (copy_node (decl), NULL_TREE);
+	body = c_begin_compound_stmt (true);
+	/* property_name = _value; */
+	stmt = NULL_TREE;
+	if (PROPERTY_COPY (property) == boolean_true_node
+		|| (PROPERTY_RETAIN (property) == boolean_true_node))
+    {
+		/* build call to:
+		 objc_setProperty (self, _cmd, offsetof (class, ivar), arg, [true|false], [true|false]) */
+		tree cmd, arg;
+		/* APPLE LOCAL begin radar 5610134 */
+		tree func_params, func;
+		tree field_decl = nested_ivar_lookup (class, PROPERTY_IVAR_NAME (property));
+		tree offset = byte_position (field_decl);
+		/* APPLE LOCAL end radar 5610134 */
+		tree shouldCopy = (PROPERTY_COPY (property) == boolean_true_node) 
+		? boolean_true_node : boolean_false_node; 
+		tree isAtomic = IS_ATOMIC (property) ? boolean_true_node : boolean_false_node;
+		gcc_assert (self_decl);
+		cmd = TREE_CHAIN (self_decl);
+		gcc_assert (cmd);
+		arg = TREE_CHAIN (cmd);
+		gcc_assert (arg);
+		/* APPLE LOCAL radar 5398274 */
+		TREE_USED (arg) = 1;
+		func_params = tree_cons (NULL_TREE, self_decl,
+								 tree_cons (NULL_TREE, cmd,
+											tree_cons (NULL_TREE, offset,
+													   tree_cons (NULL_TREE, arg,
+																  tree_cons (NULL_TREE, isAtomic,
+																			 tree_cons (NULL_TREE, shouldCopy, NULL_TREE))))));
+		func = umsg_SetAtomicProperty;
+		stmt =  build_function_call (func, func_params);
+    }
+	else
+    {
+		tree ivar_type;
+		tree rhs = lookup_name (get_identifier ("_value"));
+		/* APPLE LOCAL begin radar 5376125 */
+		int save_warn_direct_ivar_access = warn_direct_ivar_access;
+		warn_direct_ivar_access = 0;
+		lhs = build_ivar_reference (PROPERTY_IVAR_NAME (property));
+		warn_direct_ivar_access = save_warn_direct_ivar_access;
+		/* APPLE LOCAL end radar 5376125 */
+		/* Recover when method does not have '_value' argument. This is because user
+         provided its own accessor and for which an error is already issued. */
+		if (!rhs)
+			rhs = lhs;
+		/* APPLE LOCAL begin radar 5232840 */
+		else
+			TREE_USED (rhs) = 1;
+		/* APPLE LOCAL end radar 5232840 */
+		ivar_type = TREE_TYPE (lhs);
+		if ((TREE_CODE (ivar_type) == RECORD_TYPE || TREE_CODE (ivar_type) == UNION_TYPE)
+			/* APPLE LOCAL begin radar 5080710 */
+			&& IS_ATOMIC (property)
+			&& (TREE_ADDRESSABLE (ivar_type) || targetm.calls.return_in_memory  (ivar_type, 0)))
+		/* APPLE LOCAL end radar 5080710 */
+        {
+			/* objc_copyStruct (&structIvar, &value, sizeof (struct something), true, false); */
+			tree func_params;
+			tree isAtomic = boolean_true_node;
+			tree hasStrong = boolean_false_node;
+			tree addr_structIvar = build_fold_addr_expr (lhs);
+			tree size_struct = build_int_cst_wide (NULL_TREE,
+												   TREE_INT_CST_LOW (TYPE_SIZE_UNIT (ivar_type)),
+												   TREE_INT_CST_HIGH (TYPE_SIZE_UNIT (ivar_type)));
+			rhs = build_fold_addr_expr (rhs);
+			func_params = tree_cons (NULL_TREE, addr_structIvar,
+									 tree_cons (NULL_TREE, rhs,
+												tree_cons (NULL_TREE, size_struct,
+														   tree_cons (NULL_TREE, isAtomic,
+																	  tree_cons (NULL_TREE, hasStrong, NULL_TREE)))));
+			stmt = build_function_call (umsg_CopyAtomicStruct, func_params);  
+		}
+		else
+    	{
+			/* Common case */
+			/* APPLE LOCAL 5675908 */
+			stmt =  build_modify_expr (lhs, NOP_EXPR, rhs);
+		}
+    }
+	/* APPLE LOCAL end radar 4947014 - objc atomic property */
+	
 	if (stmt)
 		add_stmt (stmt);
 	add_stmt (c_end_compound_stmt (body, true));
