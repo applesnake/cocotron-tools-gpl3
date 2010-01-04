@@ -8138,6 +8138,17 @@ objc_synthesize_new_getter (tree class, tree class_method, tree property)
 	objc_finish_method_definition (fn);
 }
 
+/* APPLE LOCAL begin radar 5168496 */
+/* Return TRUE if object of TYPE pointer type requires explicit memory management. 
+   This is reserved for objctivec-c object pointers; such as 'id'. */
+static bool
+managed_objc_object_pointer (tree type)
+{
+  return type && type != error_mark_node && POINTER_TYPE_P (type) 
+	 && (objc_is_object_id (TREE_TYPE (type)) || TYPED_OBJECT (TREE_TYPE (type)));
+}
+/* APPLE LOCAL end radar 5168496 */
+
 static void
 objc_add_property_setter_method (tree class, tree x)
 {
@@ -8227,7 +8238,9 @@ objc_add_property_variable (tree decl)
 		property_copy = property_retain = false;
     }
 	else if (!property_assign && !property_retain && !property_copy
-			 && !property_readonly)
+          && !property_readonly
+          /* APPLE LOCAL radar 5168496 */
+	  && managed_objc_object_pointer (TREE_TYPE (property_decl)))
 	{
 		/* For -fobjc-gc-only, a warning is issued under more restricted condition. See below. */
 		warning (0, "no 'assign', 'retain', or 'copy' attribute is specified - 'assign' is assumed");
