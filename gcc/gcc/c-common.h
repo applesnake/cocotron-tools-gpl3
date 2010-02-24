@@ -1011,6 +1011,8 @@ extern void objc_declare_property_impl (int, tree);
 extern void objc_set_method_opt (int);
 
 extern tree objc_build_foreach_components(tree, tree*, tree*, tree*, tree*, tree*, tree*);
+extern tree objc_common_type (tree, tree);
+extern bool objc_have_common_type (tree, tree, int, tree);
 extern bool objc_type_valid_for_messaging(tree);
 extern bool objc_property_reference_expr(tree);
 extern tree objc_build_component_ref(tree, tree);

@@ -2267,7 +2267,6 @@ objc_common_type (tree type1, tree type2)
 }
 /* APPLE LOCAL end 4154928 */
 
-
 /* Determine if it is permissible to assign (if ARGNO is greater than -3)
    an instance of RTYP to an instance of LTYP or to compare the two
    (if ARGNO is equal to -3), per ObjC type system rules.  Before
@@ -2282,7 +2281,11 @@ objc_common_type (tree type1, tree type2)
      0		Return value;
      -1		Assignment;
      -2		Initialization;
-     -3		Comparison (LTYP and RTYP may match in either direction).  */
+     APPLE LOCAL begin 4175534
+     -3		Comparison (LTYP and RTYP may match in either direction);
+     -4		Silent comparison (for C++ overload resolution).
+     -5         Comparison of ivar and @synthesized property type
+     APPLE LOCAL end 4175534  */
 
 bool
 objc_compare_types (tree ltyp, tree rtyp, int argno, tree callee)
@@ -2301,6 +2304,31 @@ objc_compare_types (tree ltyp, tree rtyp, int argno, tree callee)
     }
   while (POINTER_TYPE_P (ltyp) && POINTER_TYPE_P (rtyp));
 
+  /* APPLE LOCAL begin 4174166 */
+  /* We must also handle function pointers, since ObjC is a bit more
+     lenient than C or C++ on this.  */
+  if (TREE_CODE (ltyp) == FUNCTION_TYPE && TREE_CODE (rtyp) == FUNCTION_TYPE)
+    {
+      /* Return types must be covariant.  */
+      if (!comptypes (TREE_TYPE (ltyp), TREE_TYPE (rtyp))
+	  && !objc_compare_types (TREE_TYPE (ltyp), TREE_TYPE (rtyp),
+				  argno, callee))
+      return false;
+
+      /* Argument types must be contravariant.  */
+      for (ltyp = TYPE_ARG_TYPES (ltyp), rtyp = TYPE_ARG_TYPES (rtyp);
+	   ltyp && rtyp; ltyp = TREE_CHAIN (ltyp), rtyp = TREE_CHAIN (rtyp))
+	{
+	  if (!comptypes (TREE_VALUE (rtyp), TREE_VALUE (ltyp))
+	      && !objc_compare_types (TREE_VALUE (rtyp), TREE_VALUE (ltyp),
+				      argno, callee))
+	    return false;
+      }
+
+      return (ltyp == rtyp);
+    }
+
+  /* APPLE LOCAL end 4174166 */
   /* Past this point, we are only interested in ObjC class instances,
      or 'id' or 'Class'.  */
   if (TREE_CODE (ltyp) != RECORD_TYPE || TREE_CODE (rtyp) != RECORD_TYPE)
@@ -2314,8 +2342,11 @@ objc_compare_types (tree ltyp, tree rtyp, int argno, tree callee)
       && !TYPE_HAS_OBJC_INFO (rtyp))
     return false;
 
-  /* Past this point, we are committed to returning 'true' to the caller.
-     However, we can still warn about type and/or protocol mismatches.  */
+  /* APPLE LOCAL begin 4175534 */
+  /* Past this point, we are committed to returning 'true' to the caller
+     (unless performing a silent comparison; see below).  However, we can
+     still warn about type and/or protocol mismatches.  */
+  /* APPLE LOCAL end 4175534 */
 
   if (TYPE_HAS_OBJC_INFO (ltyp))
     {
@@ -2369,7 +2400,8 @@ objc_compare_types (tree ltyp, tree rtyp, int argno, tree callee)
       if (!pointers_compatible)
 	pointers_compatible = DERIVED_FROM_P (ltyp, rtyp);
 
-      if (!pointers_compatible && argno == -3)
+      /* APPLE LOCAL 4175534 */
+      if (!pointers_compatible && argno <= -3 && argno != -5)
 	pointers_compatible = DERIVED_FROM_P (rtyp, ltyp);
     }
 
@@ -2378,20 +2410,30 @@ objc_compare_types (tree ltyp, tree rtyp, int argno, tree callee)
   if (pointers_compatible)
     {
       pointers_compatible = objc_compare_protocols (lcls, ltyp, rcls, rtyp,
-						    argno != -3);
+						    /* APPLE LOCAL 4175534 */
+						    (argno > -3 || argno == -5));
 
       if (!pointers_compatible && argno == -3)
 	pointers_compatible = objc_compare_protocols (rcls, rtyp, lcls, ltyp,
-						      argno != -3);
+						      /* APPLE LOCAL 4175534 */
+						      false);
     }
 
   if (!pointers_compatible)
     {
-      /* NB: For the time being, we shall make our warnings look like their
-	 C counterparts.  In the future, we may wish to make them more
-	 ObjC-specific.  */
+      /* APPLE LOCAL begin 4175534 */
+      /* The two pointers are not exactly compatible.  Issue a warning, unless
+	 we are performing a silent comparison, in which case return 'false'
+	 instead.  */
+      /* APPLE LOCAL end 4175534 */
       switch (argno)
 	{
+	/* APPLE LOCAL begin 4175534 */
+	case -5:
+	case -4:
+	  return false;
+
+	/* APPLE LOCAL end 4175534 */
 	case -3:
 	  warning (0, "comparison of distinct Objective-C types lacks a cast");
 	  break;
@@ -9443,8 +9485,7 @@ objc_process_getter_setter (tree class, tree property, bool getter)
 	if (!prop_getter_mth_decl)
 		return;
 	
-	/* APPLE LOCAL radar 5370783 */
-	if (!match_proto_with_proto (prop_getter_mth_decl, prop_mth_decl, 2))
+	if (!match_proto_with_proto (prop_getter_mth_decl, prop_mth_decl, 1))
     {
 		error ("User %s %qs does not match property %qs type", 
 			   getter ? "getter" : "setter",
@@ -11142,15 +11183,10 @@ match_proto_with_proto (tree proto1, tree proto2, int strict)
 	/* Compare return types.  */
 	type1 = TREE_VALUE (TREE_TYPE (proto1));
 	type2 = TREE_VALUE (TREE_TYPE (proto2));
-	/* APPLE LOCAL begin radar 5370783 */
-	if (!objc_types_are_equivalent (type1, type2)) {
-		if (strict == 2)
-			return 0;
-		if (!objc_types_share_size_and_alignment (type1, type2))
-			return 0;
-		if (strict == 1 && !objc_compare_types(type1, type2, -2, 0))
-			return 0;
-	}
+
+  if (!objc_types_are_equivalent (type1, type2)
+      && (strict || !objc_types_share_size_and_alignment (type1, type2)))
+    return 0;
 	
 	/* Compare argument types.  */
 	for (type1 = get_arg_type_list (proto1, METHOD_REF, 0),
@@ -11158,18 +11194,13 @@ match_proto_with_proto (tree proto1, tree proto2, int strict)
 		 type1 && type2;
 		 type1 = TREE_CHAIN (type1), type2 = TREE_CHAIN (type2))
     {
-		if (!objc_types_are_equivalent (TREE_VALUE (type1), TREE_VALUE (type2))) {
-			if (strict == 2)
-				return 0;
-			if (!objc_types_share_size_and_alignment (TREE_VALUE (type1), TREE_VALUE (type2)))
-				return 0;
-			/* Note, order of type2 and type1 in argument call is intentional. */
-			if (strict == 1 && !objc_compare_types(TREE_VALUE (type2), TREE_VALUE (type1), -2, 0))
-				return 0;
+      if (!objc_types_are_equivalent (TREE_VALUE (type1), TREE_VALUE (type2))
+	  && (strict
+	      || !objc_types_share_size_and_alignment (TREE_VALUE (type1),
+						       TREE_VALUE (type2))))
+	return 0;
 		}
-    }
-	/* APPLE LOCAL end radar 5370783 */
-	
+
 	return (!type1 && !type2);
 }
 
