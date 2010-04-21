@@ -911,7 +911,7 @@ set_scheduler_locking_mode (enum scheduler_locking_mode new_mode)
   else if (scheduler_mode == schedlock_step)
     old_mode = scheduler_locking_step;
   else
-    error ("Invalid new scheduler mode: %ld", (long) new_mode); 
+    error ("Invalid old scheduler mode: %ld", (long) scheduler_mode); 
 
   switch (new_mode)
     {
@@ -925,7 +925,7 @@ set_scheduler_locking_mode (enum scheduler_locking_mode new_mode)
       scheduler_mode = schedlock_step;
       break;
     default:
-      error ("Invalid new scheduler mode: %d", new_mode);
+    error ("Invalid new scheduler mode: %ld", (long) new_mode); 
     }
      
   set_schedlock_helper ();
