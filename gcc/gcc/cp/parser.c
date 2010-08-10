@@ -19525,7 +19525,7 @@ cp_parser_objc_protocol_declaration (cp_parser* parser)
   /* Try a forward declaration first.  */
   if (tok->type == CPP_COMMA || tok->type == CPP_SEMICOLON)
     {
-      objc_declare_protocols (cp_parser_objc_identifier_list (parser), NULL_TREE);
+      objc_declare_protocols (cp_parser_objc_identifier_list (parser));
      finish:
       cp_parser_consume_semicolon_at_end_of_statement (parser);
     }
@@ -19535,7 +19535,7 @@ cp_parser_objc_protocol_declaration (cp_parser* parser)
     {
       proto = cp_parser_identifier (parser);
       protorefs = cp_parser_objc_protocol_refs_opt (parser);
-      objc_start_protocol (proto, protorefs, NULL_TREE);
+      objc_start_protocol (proto, protorefs);
       cp_parser_objc_method_prototype_list (parser);
     }
 }

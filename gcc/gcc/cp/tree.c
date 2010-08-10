@@ -236,7 +236,7 @@ real_lvalue_p (const_tree ref)
    considered lvalues.  */
 
 int
-lvalue_p (const_tree ref)
+lvalue_p (tree ref)
 {
   return
     (lvalue_p_1 (ref, /*class rvalue ok*/ 1) != clk_none);
