@@ -6515,8 +6515,7 @@ c_parser_objc_protocol_definition (c_parser *parser, tree attributes)
 	    break;
 	}
       c_parser_skip_until_found (parser, CPP_SEMICOLON, "expected %<;%>");
-      /* APPLE LOCAL radar 4947311 - protocol attributes */
-      objc_declare_protocols (list, attributes);
+      objc_declare_protocols (list);
     }
   else
     {
@@ -6525,11 +6524,12 @@ c_parser_objc_protocol_definition (c_parser *parser, tree attributes)
       c_parser_consume_token (parser);
       if (c_parser_next_token_is (parser, CPP_LESS))
 	proto = c_parser_objc_protocol_refs (parser);
-      parser->objc_pq_context = true;
-      objc_start_protocol (id, proto, attributes);
+      parser->objc_pq_context = 1;
+      objc_start_protocol (id, proto);
+      /* APPLE LOCAL C* property (Radar 4436866) (in 4.2 r) */
       c_parser_objc_interfacedecllist (parser);
       c_parser_require_keyword (parser, RID_AT_END, "expected %<@end%>");
-      parser->objc_pq_context = false;
+      parser->objc_pq_context = 0;
       objc_finish_interface ();
 	}
 }

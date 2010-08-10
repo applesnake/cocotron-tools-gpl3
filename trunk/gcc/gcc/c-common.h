@@ -911,6 +911,8 @@ enum lvalue_use {
 };
 
 extern void lvalue_error (enum lvalue_use);
+/* APPLE LOCAL lvalue assign */
+extern bool lvalue_or_else_1 (tree *ref, enum lvalue_use use);
 
 extern int complete_array_type (tree *, tree, bool);
 
@@ -953,8 +955,22 @@ extern void c_parse_error (const char *, enum cpp_ttype, tree);
 extern tree objc_is_class_name (tree);
 extern tree objc_is_object_ptr (tree);
 extern void objc_check_decl (tree);
+/* APPLE LOCAL radar 4281748 */
+extern void objc_check_global_decl (tree);
 extern int objc_is_reserved_word (tree);
+/* APPLE LOCAL 4154928 */
+extern tree objc_common_type (tree, tree);
+/* APPLE LOCAL 4330422 */
+extern tree objc_non_volatilized_type (tree);
+/* APPLE LOCAL radar 4697411 */
+extern void objc_volatilize_component_ref (tree, tree);
 extern bool objc_compare_types (tree, tree, int, tree);
+/* APPLE LOCAL radar 4229905 */
+extern bool objc_have_common_type (tree, tree, int, tree);
+/* APPLE LOCAL radar 4133425 */
+extern bool objc_diagnose_private_ivar (tree);
+/* APPLE LOCAL radar 4507230 */
+bool objc_type_valid_for_messaging (tree);
 extern void objc_volatilize_decl (tree);
 extern bool objc_type_quals_match (tree, tree);
 extern tree objc_rewrite_function_call (tree, tree);
@@ -965,7 +981,7 @@ extern int objc_is_public (tree, tree);
 extern tree objc_is_id (tree);
 extern void objc_declare_alias (tree, tree);
 extern void objc_declare_class (tree);
-extern void objc_declare_protocols (tree, tree);
+extern void objc_declare_protocols (tree);
 extern tree objc_build_message_expr (tree);
 extern tree objc_finish_message_expr (tree, tree, tree);
 extern tree objc_build_selector_expr (tree);
@@ -975,22 +991,35 @@ extern tree objc_build_string_object (tree);
 extern tree objc_get_protocol_qualified_type (tree, tree);
 extern tree objc_get_class_reference (tree);
 extern tree objc_get_class_ivars (tree);
+/* APPLE LOCAL begin radar 4291785 */
+extern tree objc_get_interface_ivars (tree);
+extern void objc_detect_field_duplicates (tree);
+/* APPLE LOCAL end radar 4291785 */
+/* APPLE LOCAL radar 4548636 */
 extern void objc_start_class_interface (tree, tree, tree, tree);
 extern void objc_start_category_interface (tree, tree, tree);
-extern void objc_start_protocol (tree, tree, tree);
+extern void objc_start_protocol (tree, tree);
 extern void objc_continue_interface (void);
 extern void objc_finish_interface (void);
 extern void objc_start_class_implementation (tree, tree);
 extern void objc_start_category_implementation (tree, tree);
+/* APPLE LOCAL radar 4533974 - ObjC new protocol */
+extern void objc_protocol_implementation (tree);
+/* APPLE LOCAL radar 4592503 */
+extern void objc_checkon_weak_attribute (tree);
 extern void objc_continue_implementation (void);
 extern void objc_finish_implementation (void);
 extern void objc_set_visibility (int);
 extern void objc_set_method_type (enum tree_code);
 extern tree objc_build_method_signature (tree, tree, tree, bool);
+/* APPLE LOCAL begin radar 3803157 - objc attribute */
+extern bool objc_method_decl (enum tree_code);
 extern void objc_add_method_declaration (tree, tree);
 extern void objc_start_method_definition (tree, tree);
+/* APPLE LOCAL end radar 3803157 - objc attribute */
 extern void objc_finish_method_definition (tree);
 extern void objc_add_instance_variable (tree);
+/* APPLE LOCAL radar 4157812 */
 extern tree objc_build_keyword_decl (tree, tree, tree, tree);
 extern tree objc_build_throw_stmt (tree);
 extern void objc_begin_try_stmt (location_t, tree);
@@ -1002,21 +1031,61 @@ extern tree objc_build_synchronized (location_t, tree, tree);
 extern int objc_static_init_needed_p (void);
 extern tree objc_generate_static_init_call (tree);
 extern tree objc_generate_write_barrier (tree, enum tree_code, tree);
+/* APPLE LOCAL radar 5276085 */
+extern void objc_weak_reference_expr (tree*);
+/* APPLE LOCAL begin 5276085 */
+extern tree objc_build_weak_reference_tree (tree);
+/* APPLE LOCAL end 5276085 */
 
-extern void objc_finish_foreach_loop (location_t, tree, tree, tree, tree);
-extern tree objc_build_property_reference_expr (tree, tree);
-extern void objc_set_property_attr (int, tree);
-extern void objc_add_property_variable (tree);
-extern void objc_declare_property_impl (int, tree);
+/* APPLE LOCAL begin C* language */
 extern void objc_set_method_opt (int);
+void objc_finish_foreach_loop (location_t, tree, tree, tree, tree);
+tree objc_build_component_ref (tree, tree);
+tree objc_build_foreach_components (tree, tree*, tree*, tree*, 
+				    tree*, tree*, tree*);
+/* APPLE LOCAL end C* language */
+/* APPLE LOCAL begin C* property (Radar 4436866) */
+void objc_set_property_attr (int, tree);
+void objc_add_property_variable (tree);
+/* APPLE LOCAL begin radar 5285911 */
+tree objc_build_property_reference_expr (tree, tree);
+bool objc_property_reference_expr (tree);
+/* APPLE LOCAL end radar 5285911 */
+tree objc_build_setter_call (tree, tree);
+/* APPLE LOCAL end C* property (Radar 4436866) */
+/* APPLE LOCAL radar 4712269 */
+tree objc_build_incr_decr_setter_call (enum tree_code, tree, tree);
+/* APPLE LOCAL begin objc new property */
+void objc_declare_property_impl (int, tree);
+/* APPLE LOCAL radar 5285911 */
+/* objc_property_call decl removed. */
+/* APPLE LOCAL end objc new property */
 
-extern tree objc_build_foreach_components(tree, tree*, tree*, tree*, tree*, tree*, tree*);
-extern tree objc_common_type (tree, tree);
-extern bool objc_have_common_type (tree, tree, int, tree);
-extern bool objc_type_valid_for_messaging(tree);
-extern bool objc_property_reference_expr(tree);
-extern tree objc_build_component_ref(tree, tree);
-extern tree objc_build_setter_call(tree, tree);
+/* APPLE LOCAL begin ObjC new abi */
+extern tree objc_v2_build_ivar_ref (tree datum, tree component);
+/* APPLE LOCAL end ObjC new abi */
+
+/* APPLE LOCAL begin C* warnings to easy porting to new abi */
+void diagnose_selector_cast (tree cast_type, tree sel_exp);
+/* APPLE LOCAL end C* warnings to easy porting to new abi */
+
+/* APPLE LOCAL begin radar 4441049 */
+tree objc_v2_component_ref_field_offset (tree);
+tree objc_v2_bitfield_ivar_bitpos (tree);
+/* APPLE LOCAL end radar 4441049 */
+
+/* APPLE LOCAL begin 4985544 */
+bool objc_check_format_nsstring (tree, unsigned HOST_WIDE_INT, bool *);
+/* APPLE LOCAL end 4985544 */
+
+/* APPLE LOCAL radar 2996215 */
+tree objc_create_init_utf16_var (const unsigned char *, size_t, size_t *);
+/* APPLE LOCAL radar 5202926 */
+bool objc_anonymous_local_objc_name (const char *);
+/* APPLE LOCAL begin radar 5195402 */
+bool objc_check_nsstring_pointer_type (tree);
+bool objc_check_cfstringref_type (tree);
+/* APPLE LOCAL end radar 5195402 */
 
 /* The following are provided by the C and C++ front-ends, and called by
    ObjC/ObjC++.  */

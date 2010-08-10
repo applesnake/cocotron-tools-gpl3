@@ -4331,9 +4331,12 @@ build_unary_op (enum tree_code code, tree xarg, int noconvert)
 	inc = cp_convert (argtype, inc);
 
 	/* Complain about anything else that is not a true lvalue.  */
-	if (!lvalue_or_else (arg, ((code == PREINCREMENT_EXPR
+	/* APPLE LOCAL begin non lvalue assign */
+	if (!lvalue_or_else (&arg, ((code == PREINCREMENT_EXPR
 				    || code == POSTINCREMENT_EXPR)
-				   ? lv_increment : lv_decrement)))
+				    ? lv_increment
+				    : lv_decrement)))
+	/* APPLE LOCAL end non lvalue assign */
 	  return error_mark_node;
 
 	/* Forbid using -- on `bool'.  */
@@ -4500,7 +4503,8 @@ build_unary_op (enum tree_code code, tree xarg, int noconvert)
       if (TREE_CODE (argtype) != FUNCTION_TYPE
 	  && TREE_CODE (argtype) != METHOD_TYPE
 	  && TREE_CODE (arg) != OFFSET_REF
-	  && !lvalue_or_else (arg, lv_addressof))
+	  /* APPLE LOCAL non lvalue assign */
+	  && !lvalue_or_else (&arg, lv_addressof))
 	return error_mark_node;
 
       if (argtype != error_mark_node)
@@ -5706,7 +5710,8 @@ build_modify_expr (tree lhs, enum tree_code modifycode, tree rhs)
     case MAX_EXPR:
       /* MIN_EXPR and MAX_EXPR are currently only permitted as lvalues,
 	 when neither operand has side-effects.  */
-      if (!lvalue_or_else (lhs, lv_assign))
+      /* APPLE LOCAL non lvalue assign */
+      if (!lvalue_or_else (&lhs, lv_assign))
 	return error_mark_node;
 
       gcc_assert (!TREE_SIDE_EFFECTS (TREE_OPERAND (lhs, 0))
@@ -5740,7 +5745,8 @@ build_modify_expr (tree lhs, enum tree_code modifycode, tree rhs)
 
 	/* Check this here to avoid odd errors when trying to convert
 	   a throw to the type of the COND_EXPR.  */
-	if (!lvalue_or_else (lhs, lv_assign))
+	/* APPLE LOCAL non lvalue assign */
+	if (!lvalue_or_else (&lhs, lv_assign))
 	  return error_mark_node;
 
 	cond = build_conditional_expr
@@ -5848,7 +5854,8 @@ build_modify_expr (tree lhs, enum tree_code modifycode, tree rhs)
     }
 
   /* The left-hand side must be an lvalue.  */
-  if (!lvalue_or_else (lhs, lv_assign))
+  /* APPLE LOCAL non lvalue assign */
+  if (!lvalue_or_else (&lhs, lv_assign))
     return error_mark_node;
 
   /* Warn about modifying something that is `const'.  Don't warn if
@@ -7211,9 +7218,14 @@ non_reference (tree t)
    how the lvalue is being used and so selects the error message.  */
 
 int
-lvalue_or_else (const_tree ref, enum lvalue_use use)
+/* APPLE LOCAL begin non lvalue assign */
+lvalue_or_else (tree* ref, enum lvalue_use use)
 {
-  int win = lvalue_p (ref);
+  int win = lvalue_p (*ref);
+
+  if (!win)
+    win = lvalue_or_else_1 (ref, use);
+/* APPLE LOCAL end non lvalue assign */
 
   if (!win)
     lvalue_error (use);

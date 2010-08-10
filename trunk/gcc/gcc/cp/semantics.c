@@ -1247,7 +1247,8 @@ finish_asm_stmt (int volatile_p, tree string, tree output_operands,
 	     otherwise we'll get an error.  Gross, but ...  */
 	  STRIP_NOPS (operand);
 
-	  if (!lvalue_or_else (operand, lv_asm))
+	  /* APPLE LOCAL non lvalue assign */
+	  if (!lvalue_or_else (&operand, lv_asm))
 	    operand = error_mark_node;
 
 	  if (operand != error_mark_node

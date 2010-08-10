@@ -44,6 +44,13 @@ objc_is_object_ptr (tree ARG_UNUSED (arg))
   return 0;
 }
 
+/* APPLE LOCAL begin radar 4133425 */
+bool objc_diagnose_private_ivar (tree ARG_UNUSED (arg))
+{
+  return false;
+}
+/* APPLE LOCAL end radar 4133425 */
+
 tree
 objc_lookup_ivar (tree other, tree ARG_UNUSED (arg))
 {
@@ -55,6 +62,28 @@ void
 objc_check_decl (tree ARG_UNUSED (decl))
 {
 }
+   
+/* APPLE LOCAL begin radar 4281748 */
+void
+objc_check_global_decl (tree ARG_UNUSED (decl))
+{
+}
+/* APPLE LOCAL end radar 4281748 */
+
+/* APPLE LOCAL begin radar 4330422 */
+tree
+objc_non_volatilized_type (tree type)
+{
+  return type;
+}
+/* APPLE LOCAL end radar 4330422 */
+
+/* APPLE LOCAL begin radar 4697411 */
+void
+objc_volatilize_component_ref (tree ARG_UNUSED (cref), tree ARG_UNUSED (type))
+{
+}
+/* APPLE LOCAL end radar 4697411 */
    
 int
 objc_is_reserved_word (tree ARG_UNUSED (ident))
@@ -69,6 +98,7 @@ objc_common_type (tree ARG_UNUSED (type1), tree ARG_UNUSED (type2))
   return false;
 }
 /* APPLE LOCAL end 4154928 */
+
 bool
 objc_compare_types (tree ARG_UNUSED (ltyp), tree ARG_UNUSED (rtyp),
 		    int ARG_UNUSED (argno), tree ARG_UNUSED (callee))
@@ -119,15 +149,13 @@ objc_declare_class (tree ARG_UNUSED (list))
 }
 
 void
-/* APPLE LOCAL begin radar 4947311 - protocol attributes */
-objc_declare_protocols (tree ARG_UNUSED (list), tree ARG_UNUSED (attributes))
+objc_declare_protocols (tree ARG_UNUSED (list))
 {
 }
 
 void
 objc_start_protocol (tree ARG_UNUSED (proto),
-		     tree ARG_UNUSED (protorefs),
-		     tree ARG_UNUSED (attributes))
+		     tree ARG_UNUSED (protorefs))
 {
 }
 
@@ -277,6 +305,18 @@ objc_get_class_reference (tree ARG_UNUSED (name))
   return 0;
 }
 
+/* APPLE LOCAL begin radar 4291785 */
+tree
+objc_get_interface_ivars (tree ARG_UNUSED (fieldlist))
+{
+  return 0;
+}
+void
+objc_detect_field_duplicates (tree ARG_UNUSED (fieldlist))
+{
+}
+/* APPLE LOCAL end radar 4291785 */
+
 tree
 objc_get_protocol_qualified_type (tree ARG_UNUSED (name),
 				  tree ARG_UNUSED (protos))
@@ -398,13 +438,69 @@ objc_generate_write_barrier (tree ARG_UNUSED (lhs),
 {
   return 0;
 }  
+/* APPLE LOCAL begin radar 5276085 */
+void objc_weak_reference_expr (tree* ARG_UNUSED (expr))
+{
+}
 
+tree
+objc_build_weak_reference_tree (tree expr)
+{
+  return expr;
+}
+/* APPLE LOCAL end radar 5276085 */
+
+/* APPLE LOCAL begin ObjC new abi */
+tree
+objc_v2_build_ivar_ref (tree ARG_UNUSED (datum), tree ARG_UNUSED (component))
+{
+  return 0;
+}
+/* APPLE LOCAL end ObjC new abi */
+
+/* APPLE LOCAL begin C* warnings to easy porting to new abi */
+void
+diagnose_selector_cast (tree ARG_UNUSED (cast_type), tree ARG_UNUSED (sel_exp))
+{
+}
+/* APPLE LOCAL end C* warnings to easy porting to new abi */
+
+/* APPLE LOCAL begin radar 4441049 */
+tree
+objc_v2_component_ref_field_offset (tree ARG_UNUSED (exp))
+{
+  return 0;
+}
+
+tree
+objc_v2_bitfield_ivar_bitpos (tree ARG_UNUSED (exp))
+{
+  return 0;
+}
+/* APPLE LOCAL end radar 4441049 */ 
+/* APPLE LOCAL begin radar 4507230 */
 bool 
 objc_type_valid_for_messaging (tree ARG_UNUSED (exp))
 {
 	return false;
 }
+/* APPLE LOCAL end radar 4507230 */
+/* APPLE LOCAL begin radar 3803157 - objc attribute */
+bool 
+objc_method_decl (enum tree_code ARG_UNUSED (opcode))
+{
+  return false;
+}
+/* APPLE LOCAL end radar 3803157 - objc attribute */
 
+/* APPLE LOCAL begin radar 4533974 - ObjC new protocol */
+void
+objc_protocol_implementation (tree ARG_UNUSED (protolist))
+{
+  return;
+}
+/* APPLE LOCAL end radar 4533974 - ObjC new protocol */
+/* APPLE LOCAL begin radar 4708210 (for_objc_collection in 4.2) */
 void
 objc_finish_foreach_loop (location_t ARG_UNUSED (location), tree ARG_UNUSED (cond), 
 			  tree ARG_UNUSED (for_body), tree ARG_UNUSED (blab), 
@@ -412,7 +508,24 @@ objc_finish_foreach_loop (location_t ARG_UNUSED (location), tree ARG_UNUSED (con
 {
   return;
 }
-
+/* APPLE LOCAL end radar 4708210 (for_objc_collection in 4.2) */
+/* APPLE LOCAL begin radar 4592503 */
+void
+objc_checkon_weak_attribute (tree ARG_UNUSED (decl)) 
+{
+  return;
+}
+/* APPLE LOCAL end radar 4592503 */
+/* APPLE LOCAL begin radar 4712269 */
+tree
+objc_build_incr_decr_setter_call (enum tree_code ARG_UNUSED (code), 
+				       tree ARG_UNUSED (lhs), 
+				       tree ARG_UNUSED (inc))
+{
+  return NULL_TREE;
+}
+/* APPLE LOCAL end radar 4712269 */
+/* APPLE LOCAL begin objc new property */
 void objc_declare_property_impl (int ARG_UNUSED (code), 
 				 tree ARG_UNUSED (tree_list))
 {
@@ -429,3 +542,49 @@ objc_property_reference_expr (tree ARG_UNUSED (exp))
 {
   return false;
 }
+/* APPLE LOCAL end radar 5285911 */
+/* APPLE LOCAL end objc new property */
+/* APPLE LOCAL begin radar 2848255 */
+bool
+objc2_valid_objc_catch_type (tree ARG_UNUSED (type))
+{
+  return false;
+}
+tree
+objc2_build_throw_call (tree ARG_UNUSED (exp))
+{
+  return NULL_TREE;
+}
+/* APPLE LOCAL end radar 2848255 */
+/* APPLE LOCAL begin radar 4985544 */
+bool
+objc_check_format_nsstring (tree ARG_UNUSED (argument),
+                            unsigned HOST_WIDE_INT ARG_UNUSED (format_num),
+                            bool * ARG_UNUSED(no_add_attrs))
+{
+  return false;
+}
+/* APPLE LOCAL end radar 4985544 */
+/* APPLE LOCAL begin radar 2996215 */
+tree
+objc_create_init_utf16_var (const unsigned char * ARG_UNUSED (inbuf), 
+			    size_t  ARG_UNUSED (length),
+			    size_t  *ARG_UNUSED (numUniChars))
+{
+  return NULL_TREE;
+}
+/* APPLE LOCAL end radar 2996215 */
+/* APPLE LOCAL begin radar 5202926 */
+bool
+objc_anonymous_local_objc_name (const char * ARG_UNUSED (name))
+{
+  return false;
+}
+/* APPLE LOCAL begin radar 5195402 */
+bool
+objc_check_nsstring_pointer_type (tree ARG_UNUSED (type))
+{
+  return false;
+}
+/* APPLE LOCAL end radar 5195402 */
+/* APPLE LOCAL end radar 5202926 */
